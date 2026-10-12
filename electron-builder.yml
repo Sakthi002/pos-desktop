@@ -1,0 +1,35 @@
+# Stable application id: changing it after release orphans user data.
+appId: in.vinuva.pos
+productName: Universal POS
+copyright: Copyright © Vinuva
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+
+# better-sqlite3 is native: it must stay unpacked so the .node binary is loadable.
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ${productName}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Universal POS
+  # Keeps the shop's database across upgrades. User data lives in userData,
+  # never the install directory, so this must stay false.
+  deleteAppDataOnUninstall: false
+
+publish: null
