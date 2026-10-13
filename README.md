@@ -56,7 +56,9 @@ runs. See [CLAUDE.md](CLAUDE.md) for the rules this codebase follows.
 
 ## Prerequisites
 
-- Node.js 22 or newer
+- Node.js 22.12 or newer. With nvm, `nvm use` in this directory picks it up
+  from `.nvmrc` — an older default (Node 14, say) fails with
+  `SyntaxError: Unexpected token '??='` before anything starts
 - On Windows, the build tools needed to compile `better-sqlite3`
   (Visual Studio Build Tools with the C++ workload)
 

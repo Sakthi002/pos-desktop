@@ -9,6 +9,9 @@
   "private": true,
   "type": "module",
   "main": "out/main/index.js",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "dev:root": "electron-vite dev --noSandbox",
