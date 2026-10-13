@@ -46,6 +46,15 @@ export function closeDatabase(): void {
   db = null;
 }
 
+/**
+ * Closes and reopens the connection, applying any migrations the file needs.
+ * Used by restore, which replaces the file underneath this process.
+ */
+export function reopenDatabase(): Database.Database {
+  closeDatabase();
+  return openDatabase();
+}
+
 export function getDatabase(): Database.Database {
   if (!db) throw new Error('Database is not open');
   return db;

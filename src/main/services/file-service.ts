@@ -53,3 +53,31 @@ export async function saveCsv(
   await writeFile(result.filePath, `${UTF8_BOM}${content}`, 'utf8');
   return { saved: true, path: result.filePath };
 }
+
+/**
+ * Picks a folder for backups. Defaults to the user's Documents, because the
+ * point is to land somewhere the shop can copy to a pen drive — not somewhere
+ * inside the application's own data.
+ */
+export async function pickDirectory(window: BrowserWindow): Promise<{ path: string | null }> {
+  const result = await dialog.showOpenDialog(window, {
+    title: 'Choose a backup folder',
+    defaultPath: app.getPath('documents'),
+    properties: ['openDirectory', 'createDirectory'],
+  });
+
+  const path = result.filePaths[0];
+  return { path: result.canceled || !path ? null : path };
+}
+
+/** Picks a backup file to restore. The file is validated before anything else. */
+export async function pickBackupFile(window: BrowserWindow): Promise<{ path: string | null }> {
+  const result = await dialog.showOpenDialog(window, {
+    title: 'Choose a backup to restore',
+    properties: ['openFile'],
+    filters: [{ name: 'Backup files', extensions: ['db', 'sqlite', 'sqlite3'] }],
+  });
+
+  const path = result.filePaths[0];
+  return { path: result.canceled || !path ? null : path };
+}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Save, Image, Check, Printer } from 'lucide-react';
 import { Field } from '../components/Field';
+import { BackupPanel } from '../components/BackupPanel';
+import { AuditPanel } from '../components/AuditPanel';
 import { call } from '../lib/ipc';
 import {
   BUSINESS_CATEGORIES,
@@ -12,14 +14,19 @@ import { INDIAN_STATES } from '@shared/states';
 import type { PrinterInfo } from '@shared/ipc-contract';
 
 type PaymentMethod = AppSettings['payment']['methods'][number];
-type Tab = 'shop' | 'invoice' | 'receipt' | 'inventory';
+type Tab = 'shop' | 'invoice' | 'receipt' | 'inventory' | 'backup' | 'audit';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'shop', label: 'Shop profile' },
   { id: 'invoice', label: 'Invoicing & tax' },
   { id: 'receipt', label: 'Receipt & payments' },
   { id: 'inventory', label: 'Inventory' },
+  { id: 'backup', label: 'Backup & restore' },
+  { id: 'audit', label: 'Audit trail' },
 ];
+
+/** Tabs that act on their own and have nothing for the page's Save button. */
+const SELF_SAVING: Tab[] = ['backup', 'audit'];
 
 /**
  * Edits the settings created during setup.
@@ -125,14 +132,16 @@ export function Settings({
           </p>
         </div>
         <div className="settings-save">
-          {saved && !dirty && (
+          {!SELF_SAVING.includes(tab) && saved && !dirty && (
             <span className="badge ok">
               <Check size={11} style={{ verticalAlign: '-1px' }} /> Saved
             </span>
           )}
-          <button className="btn-primary" onClick={() => void save()} disabled={!dirty || saving}>
-            <Save size={15} /> {saving ? 'Saving…' : 'Save changes'}
-          </button>
+          {!SELF_SAVING.includes(tab) && (
+            <button className="btn-primary" onClick={() => void save()} disabled={!dirty || saving}>
+              <Save size={15} /> {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -399,6 +408,18 @@ export function Settings({
             </label>
           </>
         )}
+
+        {tab === 'backup' && (
+          <BackupPanel
+            settings={settings}
+            onSaved={(next) => {
+              onSaved(next);
+              setDraft(next);
+            }}
+          />
+        )}
+
+        {tab === 'audit' && <AuditPanel />}
 
         {tab === 'inventory' && (
           <>

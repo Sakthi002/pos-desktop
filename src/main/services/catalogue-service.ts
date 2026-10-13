@@ -269,6 +269,8 @@ export class CatalogueService {
             reason: parsed.reason,
             before: product.stockMilli,
             after: resulting,
+            // Quantities are thousandths; the unit makes them readable later.
+            unitCode: product.unitCode,
           }),
           now(),
         );

@@ -59,6 +59,9 @@ export interface SaleReceipt {
   payments: SalePayment[];
   changePaise: number;
   notes: string | null;
+  status: SaleStatus;
+  voidedAt: string | null;
+  voidReason: string | null;
   /** True when an identical submission had already been committed. */
   duplicate: boolean;
 }
@@ -71,3 +74,70 @@ export const billPreviewSchema = z.object({
 });
 
 export type BillPreviewInput = z.infer<typeof billPreviewSchema>;
+
+// ─── Sales history ──────────────────────────────────────────────────────────
+
+export const SALE_STATUSES = ['completed', 'voided'] as const;
+export type SaleStatus = (typeof SALE_STATUSES)[number];
+
+/**
+ * History query.
+ *
+ * The date bounds are instants, not calendar days: the renderer turns the
+ * operator's local day into UTC before asking, so "today" means the shop's
+ * today whatever the machine's timezone, and the comparison stays a plain
+ * string comparison against the stored ISO timestamp.
+ */
+export const saleQuerySchema = z.object({
+  /** Invoice number, customer name or customer phone. */
+  search: z.string().trim().max(100).default(''),
+  fromIso: z.iso.datetime().nullable().optional(),
+  toIso: z.iso.datetime().nullable().optional(),
+  paymentMethod: z.enum(PAYMENT_METHODS).nullable().optional(),
+  /** Invoices billed to one customer, for their purchase history. */
+  customerId: z.string().uuid().nullable().optional(),
+  status: z.enum(['all', ...SALE_STATUSES]).default('all'),
+  sort: z.enum(['date', 'invoice', 'total']).default('date'),
+  direction: z.enum(['asc', 'desc']).default('desc'),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(10).max(200).default(50),
+});
+
+export type SaleQuery = z.infer<typeof saleQuerySchema>;
+
+/** One row of the invoice list. Totals come from the stored sale, never recomputed. */
+export interface SaleSummary {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  itemCount: number;
+  totalPaise: number;
+  /** Credited back by returns against this invoice; zero for most sales. */
+  returnedPaise: number;
+  status: SaleStatus;
+  paymentMethods: PaymentMethod[];
+  voidedAt: string | null;
+  voidReason: string | null;
+}
+
+export interface SalePage {
+  items: SaleSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Across the whole filtered set, not just this page. Voided sales count for nothing. */
+  completedCount: number;
+  completedTotalPaise: number;
+  voidedCount: number;
+  /** Returned against the sales in this filtered set. */
+  returnedTotalPaise: number;
+}
+
+export const voidSaleSchema = z.object({
+  id: z.string().uuid(),
+  reason: z.string().trim().min(3, 'Give a reason for the void').max(200),
+});
+
+export type VoidSaleInput = z.infer<typeof voidSaleSchema>;

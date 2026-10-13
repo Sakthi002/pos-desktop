@@ -110,3 +110,42 @@ describe('state codes', () => {
     expect(stateCodeFromGstin('bad')).toBeNull();
   });
 });
+
+describe('a partial update', () => {
+  it('leaves the rest of the section exactly as it was', () => {
+    const service = new SettingsService(db);
+    const base = defaultSettings('Test Shop');
+    service.replaceAll({
+      ...base,
+      receipt: { ...base.receipt, paperSize: '58mm', silentPrint: true, printerName: 'EPSON-1' },
+      backup: { ...base.backup, directory: '/tmp/backups', keepCount: 3 },
+    });
+
+    // Zod reapplies defaults for keys a partial patch omits; the service must
+    // not let that reset fields the operator never touched.
+    const after = service.update({ receipt: { footerText: 'Thank you' } });
+
+    expect(after.receipt.footerText).toBe('Thank you');
+    expect(after.receipt.paperSize).toBe('58mm');
+    expect(after.receipt.silentPrint).toBe(true);
+    expect(after.receipt.printerName).toBe('EPSON-1');
+
+    const afterBackup = service.update({ backup: { lastRunAt: '2026-10-13T06:00:00.000Z' } });
+    expect(afterBackup.backup.keepCount).toBe(3);
+    expect(afterBackup.backup.directory).toBe('/tmp/backups');
+  });
+});
+
+describe('settings written by an older version', () => {
+  it('load, with any section this version added filled from its defaults', () => {
+    // Simulates an update: the stored rows predate the backup section.
+    db.prepare("DELETE FROM settings WHERE key = 'settings.backup'").run();
+
+    const loaded = new SettingsService(db).get();
+
+    expect(loaded).not.toBeNull();
+    expect(loaded?.backup.autoEnabled).toBe(false);
+    expect(loaded?.backup.directory).toBeNull();
+    expect(loaded?.shop.name).toBe('Test Shop');
+  });
+});

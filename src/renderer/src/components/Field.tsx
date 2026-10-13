@@ -6,10 +6,12 @@ interface FieldProps {
   hint?: string;
   error?: string | undefined;
   required?: boolean;
+  /** Settings are not a form to submit; "(optional)" there is just noise. */
+  plainLabel?: boolean;
   children: ReactNode;
 }
 
-export function Field({ label, htmlFor, hint, error, required, children }: FieldProps) {
+export function Field({ label, htmlFor, hint, error, required, plainLabel, children }: FieldProps) {
   return (
     <div className="field">
       <label htmlFor={htmlFor}>
@@ -20,7 +22,7 @@ export function Field({ label, htmlFor, hint, error, required, children }: Field
             *
           </span>
         )}
-        {!required && <span className="optional"> (optional)</span>}
+        {!required && !plainLabel && <span className="optional"> (optional)</span>}
       </label>
       {children}
       {error ? (

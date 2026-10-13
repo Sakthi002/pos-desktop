@@ -96,6 +96,27 @@ export const inventorySchema = z.object({
   allowNegativeStock: z.boolean().default(false),
 });
 
+export const backupSchema = z.object({
+  /**
+   * Where backups are written. Null until the shop chooses a folder — the
+   * app never picks one silently, because a backup beside the database is no
+   * protection against losing the disk.
+   */
+  directory: z
+    .union([z.string().max(500), z.null()])
+    .optional()
+    .transform((v) => v ?? null),
+  autoEnabled: z.boolean().default(false),
+  frequency: z.enum(['daily', 'weekly']).default('daily'),
+  /** Older backups beyond this count are pruned after a successful run. */
+  keepCount: z.number().int().min(1).max(100).default(10),
+  /** Set by the scheduler, so a missed day is caught at the next start. */
+  lastRunAt: z
+    .union([z.string().max(40), z.null()])
+    .optional()
+    .transform((v) => v ?? null),
+});
+
 export const appSettingsSchema = z.object({
   shop: shopSchema,
   locale: localeSchema,
@@ -104,6 +125,7 @@ export const appSettingsSchema = z.object({
   receipt: receiptSchema,
   payment: paymentSchema,
   inventory: inventorySchema,
+  backup: backupSchema,
 });
 
 export type ShopSettings = z.infer<typeof shopSchema>;
@@ -119,6 +141,7 @@ export const settingsPatchSchema = z.object({
   receipt: receiptSchema.partial().optional(),
   payment: paymentSchema.partial().optional(),
   inventory: inventorySchema.partial().optional(),
+  backup: backupSchema.partial().optional(),
 });
 
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;
@@ -133,6 +156,7 @@ export function defaultSettings(shopName: string): AppSettings {
     receipt: {},
     payment: {},
     inventory: {},
+    backup: {},
   });
 }
 

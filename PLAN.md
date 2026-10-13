@@ -203,83 +203,83 @@ are **not** assumed globally unique.
 
 ### Phase 6 — Sales history
 
-- [ ] Invoice list with pagination
-- [ ] Search by invoice number and customer
-- [ ] Date range, payment method and status filters
-- [ ] Invoice detail from the stored snapshot
-- [ ] Snapshot proven immutable: edit a product, old invoice unchanged
-- [ ] Void/cancel with reason, audit entry and stock reversal
-- [ ] No hard delete of completed sales
+- [x] Invoice list with pagination
+- [x] Search by invoice number and customer
+- [x] Date range, payment method and status filters
+- [x] Invoice detail from the stored snapshot
+- [x] Snapshot proven immutable: edit a product, old invoice unchanged
+- [x] Void/cancel with reason, audit entry and stock reversal
+- [x] No hard delete of completed sales
 
 ### Phase 7 — Inventory and returns
 
-- [ ] Movement ledger as the single source of stock truth
-- [ ] Balances derived from movements
-- [ ] Low-stock alerts against reorder level
-- [ ] Movement history per product
-- [ ] Returns against an original invoice
-- [ ] Partial returns, capped at original quantity
-- [ ] Return reason recorded
-- [ ] Restock only when the operator marks items resaleable
-- [ ] Tax reversal calculated correctly
-- [ ] Refund recorded against a payment method
-- [ ] Duplicate-return prevention
-- [ ] All of the above inside transactions
+- [x] Movement ledger as the single source of stock truth
+- [x] Balances derived from movements
+- [x] Low-stock alerts against reorder level
+- [x] Movement history per product
+- [x] Returns against an original invoice
+- [x] Partial returns, capped at original quantity
+- [x] Return reason recorded
+- [x] Restock only when the operator marks items resaleable
+- [x] Tax reversal calculated correctly
+- [x] Refund recorded against a payment method
+- [x] Duplicate-return prevention
+- [x] All of the above inside transactions
 
 ### Phase 8 — Customers and reports
 
-- [ ] Customer CRUD and search
-- [ ] Walk-in default customer
-- [ ] Purchase history per customer
-- [ ] Report: daily sales
-- [ ] Report: date-range sales
-- [ ] Report: product-wise
-- [ ] Report: category-wise
-- [ ] Report: payment-method summary
-- [ ] Report: tax summary
-- [ ] Report: discount summary
-- [ ] Report: returns
-- [ ] Report: stock on hand
-- [ ] Report: stock movement
-- [ ] Report: low stock
-- [ ] Estimated gross profit, labelled as an estimate
-- [ ] CSV export on every report
-- [ ] Consistent definitions across reports, documented
+- [x] Customer CRUD and search
+- [x] Walk-in default customer
+- [x] Purchase history per customer
+- [x] Report: daily sales
+- [x] Report: date-range sales
+- [x] Report: product-wise
+- [x] Report: category-wise
+- [x] Report: payment-method summary
+- [x] Report: tax summary
+- [x] Report: discount summary
+- [x] Report: returns
+- [x] Report: stock on hand
+- [x] Report: stock movement
+- [x] Report: low stock
+- [x] Estimated gross profit, labelled as an estimate
+- [x] CSV export on every report
+- [x] Consistent definitions across reports, documented
 
 ### Phase 9 — Backup, restore and audit
 
-- [ ] Manual backup using SQLite's backup API, WAL-safe
-- [ ] Scheduled automatic backup
-- [ ] Backup to a user-chosen directory, outside the database directory
-- [ ] Timestamp, app version and schema version in backup metadata
-- [ ] Integrity check on the produced file
-- [ ] Restore with confirmation and pre-restore safety copy
-- [ ] Restore validation and clear error messages
-- [ ] **Restore tested from a real backup into a clean install**
-- [ ] UI warning that a backup on the same disk is not protection against disk loss
-- [ ] Audit log for void, return, stock adjustment, settings change, restore
-- [ ] Audit log is append-only
+- [x] Manual backup using SQLite's backup API, WAL-safe
+- [x] Scheduled automatic backup
+- [x] Backup to a user-chosen directory, outside the database directory
+- [x] Timestamp, app version and schema version in backup metadata
+- [x] Integrity check on the produced file
+- [x] Restore with confirmation and pre-restore safety copy
+- [x] Restore validation and clear error messages
+- [x] **Restore tested from a real backup into a clean install**
+- [x] UI warning that a backup on the same disk is not protection against disk loss
+- [x] Audit log for void, return, stock adjustment, settings change, restore
+- [x] Audit log is append-only
 
 ### Phase 10 — Tests, packaging, documentation
 
-- [ ] Calculation tests: inclusive, exclusive, discount, rounding, decimal quantity
-- [ ] Payment tests: split, change, under/overpayment rejection
-- [ ] Transaction tests: rollback, duplicate submission, invoice uniqueness
-- [ ] Inventory tests: deduction, return restock, negative-stock policy
-- [ ] Migration test and backup/restore test
-- [ ] IPC validation tests for malformed input
-- [ ] Manual: launches with network disconnected
-- [ ] Manual: billing works offline
-- [ ] Manual: restart preserves sales
-- [ ] Manual: interrupted write leaves consistent data
-- [ ] Manual: printer failure neither loses nor duplicates a sale
-- [ ] electron-builder NSIS installer with stable app id
-- [ ] Installer verified on a clean Windows machine
-- [ ] Update does not overwrite user data
-- [ ] README: prerequisites, install, dev, test, package
-- [ ] Docs: database location, backup location, recovery procedure
-- [ ] Docs: known limitations and unsigned-installer implications
-- [ ] Docs: how to collect diagnostics without exposing customer data
+- [x] Calculation tests: inclusive, exclusive, discount, rounding, decimal quantity
+- [x] Payment tests: split, change, under/overpayment rejection
+- [x] Transaction tests: rollback, duplicate submission, invoice uniqueness
+- [x] Inventory tests: deduction, return restock, negative-stock policy
+- [x] Migration test and backup/restore test
+- [x] IPC validation tests for malformed input
+- [x] Manual: launches with network disconnected
+- [x] Manual: billing works offline
+- [x] Manual: restart preserves sales
+- [x] Manual: interrupted write leaves consistent data
+- [x] Manual: printer failure neither loses nor duplicates a sale
+- [ ] electron-builder NSIS installer with stable app id — configured, never built
+- [ ] Installer verified on a clean Windows machine — **needs Windows**
+- [ ] Update does not overwrite user data — **needs Windows**
+- [x] README: prerequisites, install, dev, test, package
+- [x] Docs: database location, backup location, recovery procedure
+- [x] Docs: known limitations and unsigned-installer implications
+- [x] Docs: how to collect diagnostics without exposing customer data
 
 ---
 
@@ -347,12 +347,17 @@ replaced with IPC service calls, money converted to integer paise, and multi-ten
 
 ## 8. Progress log
 
-| Date       | Phase | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ---------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-12 | —     | Plan created. Pharmacy deferred. TypeScript confirmed. Project directory created.                                                                                                                                                                                                                                                                                                                                                                                                              |
-| 2026-10-12 | 0     | Foundation complete. Electron 44 + Vite 7 + React 18 + TS 5.9. Secure IPC verified end to end: `[boot] ipc ok — electron 44.7.0, journal wal, foreign_keys on, schema v0`. Lint, typecheck and 5 tests pass.                                                                                                                                                                                                                                                                                   |
-| 2026-10-12 | 1     | Database complete. 18 tables, 25 indexes, forward-only migrator, repository base with `inTransaction`. Money in paise, quantity in thousandths, stock as a movement ledger. 31 tests pass, covering rollback, FK enforcement, CHECK constraints and a write/read of every table. Entity repositories arrive with their feature phases.                                                                                                                                                         |
-| 2026-10-12 | 2     | Settings and first-run wizard complete. Zod-validated settings in seven sections, 5-step wizard, Settings page with four tabs, logo picker copying into userData. Setup creates company, branch, operator, walk-in customer and both invoice sequences in one transaction. 57 tests. Currency is fixed to INR (the only one supported in v1); timezone defaults to Asia/Kolkata — both shown on the review step.                                                                               |
-| 2026-10-12 | 3     | Catalogue complete. Money as integer paise and quantity as integer thousandths, both parsed from strings to avoid float error. Products, categories, units, search/filter/sort/pagination, duplicate SKU and barcode detection, stock adjustment with mandatory reason, CSV import with per-row errors and CSV export that re-imports cleanly. 137 tests.                                                                                                                                      |
-| 2026-10-12 | 4     | Billing engine complete. Single calculation service in `src/shared/billing.ts`, rules documented in `docs/calculations.md`. 32 calculation tests written before any UI; 22 checkout tests. Atomic sale: header, lines, payments and stock movements in one transaction, invoice number allocated inside it so a failure burns no number. Idempotency key prevents double-charging. POS screen with barcode entry, price override, split payments, change, hold/resume and F2/F4/F8. 191 tests. |
-| 2026-10-12 | 5     | Receipts complete. One `buildReceiptHtml` drives preview, PDF and print, so totals cannot diverge. 58mm, 80mm and A4 templates rendered and inspected; HTML escaped against names containing `&` or markup. Printer enumeration, selection and test page built. Fixed a presentation bug where a discount read as subtracted twice. 208 tests. **Printing is unverified on real hardware** — Phase 0b still open.                                                                              |
+| Date       | Phase | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-12 | —     | Plan created. Pharmacy deferred. TypeScript confirmed. Project directory created.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-10-12 | 0     | Foundation complete. Electron 44 + Vite 7 + React 18 + TS 5.9. Secure IPC verified end to end: `[boot] ipc ok — electron 44.7.0, journal wal, foreign_keys on, schema v0`. Lint, typecheck and 5 tests pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-10-12 | 1     | Database complete. 18 tables, 25 indexes, forward-only migrator, repository base with `inTransaction`. Money in paise, quantity in thousandths, stock as a movement ledger. 31 tests pass, covering rollback, FK enforcement, CHECK constraints and a write/read of every table. Entity repositories arrive with their feature phases.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 2026-10-12 | 2     | Settings and first-run wizard complete. Zod-validated settings in seven sections, 5-step wizard, Settings page with four tabs, logo picker copying into userData. Setup creates company, branch, operator, walk-in customer and both invoice sequences in one transaction. 57 tests. Currency is fixed to INR (the only one supported in v1); timezone defaults to Asia/Kolkata — both shown on the review step.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-10-12 | 3     | Catalogue complete. Money as integer paise and quantity as integer thousandths, both parsed from strings to avoid float error. Products, categories, units, search/filter/sort/pagination, duplicate SKU and barcode detection, stock adjustment with mandatory reason, CSV import with per-row errors and CSV export that re-imports cleanly. 137 tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-10-12 | 4     | Billing engine complete. Single calculation service in `src/shared/billing.ts`, rules documented in `docs/calculations.md`. 32 calculation tests written before any UI; 22 checkout tests. Atomic sale: header, lines, payments and stock movements in one transaction, invoice number allocated inside it so a failure burns no number. Idempotency key prevents double-charging. POS screen with barcode entry, price override, split payments, change, hold/resume and F2/F4/F8. 191 tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-10-13 | 10    | Tests and documentation complete; packaging is not. The validation gate moved out of the IPC registry into its own module so it can be tested without Electron, and every channel is now driven with hostile payloads — wrong types, prototype pollution, SQL in an id field, fractional paise, unsupported payment methods — with assertions that undeclared fields never reach a handler. A new crash test kills a child process mid-transaction and proves the next start finds the whole sale or none of it, with the ledger intact and no invoice number burned. The four runnable manual checks were done in the real app inside an isolated network namespace with no interfaces at all: it launched, billed SGS-1015, failed to print to a bogus printer without losing or duplicating the sale, and still had it after a restart. README rewritten for what v1 actually does, and `docs/operations.md` written for the shop: where data lives, how to back up and restore, what to do when it will not start, what to send when reporting a problem, and what an unsigned installer means. 337 tests. **Not done: the Windows installer has never been built or installed, and update-preserves-data is unproven — both need a Windows machine.**        |
+| 2026-10-13 | 9     | Backup, restore and audit complete. Backups go through SQLite's backup API, so a sale still in the WAL is in the file; each one is verified after writing (integrity check, schema version, row count against the source), stamped with app and schema version inside the file, and folded to a single file with no stray `-wal`. A folder inside the app's own data is refused. Automatic daily or weekly backups run from a scheduler that catches up after a day the shop was shut, with retention pruning only our own files. Restore validates first, takes a pre-restore copy, clears the stale WAL, reopens and migrates forward, and writes an audit entry. Audit trail screen in Settings; migration 005 makes `audit_logs` append-only at the database. 320 tests, including a restore from a real backup into a clean install. Two real bugs found by running the app: a partial settings patch reset the rest of its section to defaults (Zod reapplies defaults on a partial schema), and settings written before this phase failed to load at all because the new section was absent — the app would not start after an update. Both fixed with regression tests. Backup, restore and the audit trail were exercised end to end in the running app. |
+| 2026-10-13 | 8     | Customers and reports complete. Customers: list with spend and last purchase, create/edit, deactivate (never delete, and never the walk-in row), purchase history per customer. Eleven reports behind one screen — sales summary, daily sales, product-wise, category-wise, payment methods, tax summary, discounts, returns, stock on hand, stock movement, low stock — all returning the same table shape, so one renderer and one CSV writer serve every one and an export cannot disagree with the screen. Cash is reported net of change given; the tax summary is net of credit notes; estimated gross profit is net of returns and computed from one shared per-product basis, so the summary and the product report agree. Definitions written down in `docs/reports.md`. 293 tests. Screens captured and inspected: sales summary, product-wise, customers, customer history.                                                                                                                                                                                                                                                                                                                                                                            |
+| 2026-10-13 | 7     | Inventory and returns complete. Inventory screen over the ledger: stock list, low-stock alert against the reorder level, and per-product movement history with a running balance that names the invoice or credit note behind each move. Returns are credit notes against one invoice: partial quantities capped at what is still returnable, value reversed from the stored line so successive partials credit the line exactly, CGST/SGST/IGST reversed under the heads the invoice charged, refund written as a negative payment, restock only when the operator marks goods resaleable, and an idempotency key against a double submit. Voiding a sale that has a credit note is refused, so stock cannot come back twice. Migration 004 adds the return tax split, the idempotency key and delete protection. 264 tests. Screens captured and inspected: inventory, movement history, return dialog, a returned invoice, and a real return taken end to end through the running app.                                                                                                                                                                                                                                                                         |
+| 2026-10-13 | 6     | Sales history complete. Invoice list with search (number, customer, phone), local-day date range, payment-method and status filters, pagination, and totals for the whole filtered set rather than the page. Detail reads the stored snapshot — proven by editing a product and re-reading the invoice. Void writes status, reason, reversal movements and an audit row in one transaction; a voided invoice keeps its number, drops out of the takings and prints marked VOIDED. Migration 003 blocks deletes on sales, sale_items and payments at the database. 235 tests. Screens captured and inspected: list, detail, voided detail, void dialog, voided reprint.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 2026-10-12 | 5     | Receipts complete. One `buildReceiptHtml` drives preview, PDF and print, so totals cannot diverge. 58mm, 80mm and A4 templates rendered and inspected; HTML escaped against names containing `&` or markup. Printer enumeration, selection and test page built. Fixed a presentation bug where a discount read as subtracted twice. 208 tests. **Printing is unverified on real hardware** — Phase 0b still open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

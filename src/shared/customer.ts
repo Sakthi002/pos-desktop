@@ -53,3 +53,32 @@ export const customerInputSchema = z.object({
 });
 
 export type CustomerInput = z.infer<typeof customerInputSchema>;
+
+export const customerUpdateSchema = customerInputSchema.extend({
+  id: z.string().uuid(),
+});
+
+export type CustomerUpdate = z.infer<typeof customerUpdateSchema>;
+
+export const customerQuerySchema = z.object({
+  search: z.string().trim().max(100).default(''),
+  status: z.enum(['all', 'active', 'inactive']).default('active'),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(10).max(200).default(50),
+});
+
+export type CustomerQuery = z.infer<typeof customerQuerySchema>;
+
+/** A customer with what they have bought — what a shopkeeper actually wants to see. */
+export interface CustomerSummary extends Customer {
+  invoices: number;
+  totalPaise: number;
+  lastPurchaseAt: string | null;
+}
+
+export interface CustomerPage {
+  items: CustomerSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

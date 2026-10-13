@@ -2,7 +2,11 @@ import type { ReactNode } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
+  Receipt,
   Package,
+  Boxes,
+  Users,
+  BarChart3,
   FolderTree,
   Settings as SettingsIcon,
   HardDrive,
@@ -10,13 +14,26 @@ import {
 import type { AppSettings } from '@shared/settings';
 import type { DbStatus } from '@shared/ipc-contract';
 
-export type Route = 'dashboard' | 'pos' | 'products' | 'categories' | 'settings';
+export type Route =
+  | 'dashboard'
+  | 'pos'
+  | 'sales'
+  | 'products'
+  | 'categories'
+  | 'inventory'
+  | 'customers'
+  | 'reports'
+  | 'settings';
 
 const NAV: { id: Route; label: string; icon: typeof Package; ready: boolean }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, ready: false },
   { id: 'pos', label: 'New Sale', icon: ShoppingCart, ready: true },
+  { id: 'sales', label: 'Sales', icon: Receipt, ready: true },
   { id: 'products', label: 'Products', icon: Package, ready: true },
   { id: 'categories', label: 'Categories', icon: FolderTree, ready: true },
+  { id: 'inventory', label: 'Inventory', icon: Boxes, ready: true },
+  { id: 'customers', label: 'Customers', icon: Users, ready: true },
+  { id: 'reports', label: 'Reports', icon: BarChart3, ready: true },
   { id: 'settings', label: 'Settings', icon: SettingsIcon, ready: true },
 ];
 

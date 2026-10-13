@@ -72,7 +72,10 @@ Invoice numbers are a local per-branch sequence and are not globally unique.
 - WAL mode, `foreign_keys = ON`, `busy_timeout = 5000`.
 - Schema changes are forward-only migrations; never edit an applied migration.
 - Backups must use SQLite's backup API, not a file copy — a copy can miss
-  uncheckpointed WAL data.
+  uncheckpointed WAL data. Every backup is verified after writing and carries
+  its app and schema version inside the file.
+- `audit_logs` is append-only, enforced by triggers. Correct a mistake with
+  another entry, never by editing one.
 
 ## Conventions
 
@@ -84,5 +87,14 @@ Invoice numbers are a local per-branch sequence and are not globally unique.
 
 ## State
 
-Phase 0 complete: foundation, secure IPC, SQLite connection, build, lint, tests.
-Phase 1 next: migrations and schema. See `PLAN.md`.
+Phases 0-9 complete, and Phase 10 except packaging: foundation, schema, settings
+and setup, catalogue, billing, receipts, sales history, inventory and returns,
+customers and reports, backup and audit, tests and documentation.
+
+Two things block a release, both needing hardware this machine does not have:
+the Windows installer has never been built or installed, and printing is
+unverified on a real thermal printer (Phase 0b). See `PLAN.md`.
+
+Report definitions live in `docs/reports.md`, calculation rules in
+`docs/calculations.md`, and what a shop needs when something goes wrong in
+`docs/operations.md`.

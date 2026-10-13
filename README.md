@@ -11,10 +11,27 @@ Suitable for grocery and general stores, supermarkets, textile and clothing
 shops, hardware and electrical, electronics and stationery. Pharmacies are out
 of scope for v1, because they need batch and expiry tracking.
 
-> **Status: in development.** See [PLAN.md](PLAN.md) for the phase checklist and
-> what is done. Billing, products and receipts work; sales history, returns,
-> reports and backup are not finished yet. Printing has **not** been verified on
-> real thermal hardware.
+> **Status: feature-complete for v1, not yet released.** Setup, catalogue,
+> billing, receipts, sales history, returns, inventory, customers, reports,
+> backup and restore all work and are covered by tests. Still open: the Windows
+> installer has never been built or installed on a real Windows machine, and
+> printing has **not** been verified on real thermal hardware. See
+> [PLAN.md](PLAN.md) for the checklist.
+
+## What it does
+
+| Area      | What is there                                                                      |
+| --------- | ---------------------------------------------------------------------------------- |
+| Setup     | First-run wizard: shop profile, GST, invoice numbering, receipt size               |
+| Catalogue | Products, categories, units, CSV import/export, stock adjustment with a reason     |
+| Billing   | Barcode and search, discounts, split payments, change, hold and resume, shortcuts  |
+| Receipts  | 58mm, 80mm and A4 from one model; preview, PDF, reprint                            |
+| Sales     | History with search and filters, invoice detail from the stored snapshot, void     |
+| Returns   | Credit notes against an invoice, partial, tax reversed, restock only if resaleable |
+| Inventory | Movement ledger, running balances, low-stock alerts, per-product history           |
+| Customers | Named customers and walk-in, purchase history                                      |
+| Reports   | Eleven reports, every one exporting to CSV; definitions in `docs/reports.md`       |
+| Safety    | Verified backups, restore with a pre-restore copy, append-only audit trail         |
 
 ## Stack
 
@@ -63,6 +80,21 @@ invoice numbering and receipt size. Nothing is sent anywhere.
 After changing the Electron or Node version, run `npm run rebuild` or
 `better-sqlite3` will fail to load with an ABI mismatch.
 
+## Packaging a release
+
+```bash
+npm run package:win      # NSIS installer into release/
+```
+
+Needs a Windows machine (or Wine) — the installer has not been produced or
+tested yet. The application id is `in.vinuva.pos` and must never change: it is
+what ties an installation to its data folder. `deleteAppDataOnUninstall` stays
+`false`, so uninstalling never takes a shop's database with it.
+
+The installer is **unsigned**. See
+[docs/operations.md](docs/operations.md#the-installer-is-not-signed) for what
+that means for the shop.
+
 ## Where your data lives
 
 The database is kept in Electron's per-user data directory, never the install
@@ -74,11 +106,22 @@ directory, so updating the application cannot overwrite a shop's data.
 | Linux    | `~/.config/pos-desktop/pos.db`                     |
 | macOS    | `~/Library/Application Support/pos-desktop/pos.db` |
 
-Uploaded logos sit alongside it under `assets/`.
+Uploaded logos sit alongside it under `assets/`, and copies taken automatically
+before a restore under `pre-restore/`.
 
 SQLite runs in WAL mode, so `pos.db` is accompanied by `pos.db-wal` and
 `pos.db-shm`. **Copying `pos.db` alone can miss recent writes.** Use the
 application's backup feature rather than copying the file by hand.
+
+## Backup, restore and recovery
+
+Settings → **Backup & restore** writes a verified, self-contained backup through
+SQLite's backup API and can run daily or weekly on its own. Restoring validates
+the file first and copies the live database before replacing it.
+
+The full operational guide — where everything lives, how to recover, what to
+send when reporting a problem — is in
+[docs/operations.md](docs/operations.md).
 
 ## Money and quantities
 
@@ -90,9 +133,27 @@ operator input is parsed from the string rather than multiplied, because
 The rules for tax, discounts and rounding are documented in
 [docs/calculations.md](docs/calculations.md) and are implemented in exactly one
 place, which the screen, the stored sale and the printed receipt all call.
+Report definitions — what counts as a sale, how returns are netted, what the
+profit estimate assumes — are in [docs/reports.md](docs/reports.md).
+
+## Tests
+
+```bash
+npm test
+```
+
+Covers the calculation rules, payments and change, atomic checkout and
+rollback, duplicate submission, invoice numbering, the stock ledger, returns
+and tax reversal, reports, migrations, backup and restore from a real backup
+into a clean install, IPC payload validation, and recovery from a process
+killed mid-write.
 
 ## Known limitations
 
+- **The Windows installer has not been built or tested.** Everything below the
+  application layer — install, upgrade, uninstall — is unproven.
+- **The installer will be unsigned.** Windows SmartScreen will warn on first
+  run; see [docs/operations.md](docs/operations.md#the-installer-is-not-signed).
 - **Printing is unverified on real hardware.** Silent printing is off by
   default and is not supported by every printer or driver. Run a test page from
   Settings before relying on it.

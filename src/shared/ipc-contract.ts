@@ -22,8 +22,32 @@ import {
   type ProductPage,
   type Unit,
 } from './catalogue';
-import { saleInputSchema, billPreviewSchema, type SaleReceipt } from './sale';
-import { customerInputSchema, type Customer } from './customer';
+import {
+  saleInputSchema,
+  billPreviewSchema,
+  saleQuerySchema,
+  voidSaleSchema,
+  type SaleReceipt,
+  type SalePage,
+} from './sale';
+import {
+  customerInputSchema,
+  customerQuerySchema,
+  customerUpdateSchema,
+  type Customer,
+  type CustomerPage,
+} from './customer';
+import { reportQuerySchema, type ReportTable } from './reports';
+import {
+  backupRunSchema,
+  restoreSchema,
+  type BackupFile,
+  type BackupInspection,
+  type BackupResult,
+  type RestoreResult,
+} from './backup';
+import { returnInputSchema, type ReturnReceipt, type ReturnableSale } from './returns';
+import { movementQuerySchema, type LowStockItem, type MovementPage } from './inventory';
 import type { Bill } from './billing';
 import type { PaperSize } from './receipt';
 
@@ -39,6 +63,8 @@ export const ipcContract = {
   'settings:update': settingsPatchSchema,
 
   'dialog:pickLogo': z.void(),
+  'dialog:pickBackupDirectory': z.void(),
+  'dialog:pickBackupFile': z.void(),
   'dialog:openCsv': z.void(),
   'dialog:saveCsv': z.object({
     suggestedName: z.string().min(1).max(120),
@@ -68,10 +94,35 @@ export const ipcContract = {
   'customers:search': z.object({ term: z.string().max(100).default('') }),
   'customers:walkIn': z.void(),
   'customers:create': customerInputSchema,
+  'customers:list': customerQuerySchema.partial(),
+  'customers:get': z.object({ id: z.string().uuid() }),
+  'customers:update': customerUpdateSchema,
+  'customers:setActive': z.object({ id: z.string().uuid(), isActive: z.boolean() }),
 
   'sales:preview': billPreviewSchema,
   'sales:create': saleInputSchema,
   'sales:getReceipt': z.object({ id: z.string().uuid() }),
+  'sales:search': saleQuerySchema.partial(),
+  'sales:void': voidSaleSchema,
+
+  'returns:getSale': z.object({ saleId: z.string().uuid() }),
+  'returns:create': returnInputSchema,
+  'returns:get': z.object({ id: z.string().uuid() }),
+
+  'inventory:movements': movementQuerySchema,
+  'inventory:lowStock': z.void(),
+
+  'reports:run': reportQuerySchema,
+
+  'backup:run': backupRunSchema,
+  'backup:list': z.void(),
+  'backup:inspect': z.object({ path: z.string().min(1).max(1000) }),
+  'backup:restore': restoreSchema,
+
+  'audit:list': z.object({
+    page: z.number().int().min(1).default(1),
+    pageSize: z.number().int().min(10).max(200).default(50),
+  }),
 
   'print:listPrinters': z.void(),
   'print:previewHtml': z.object({
@@ -161,6 +212,28 @@ export interface SavedFile {
   path: string | null;
 }
 
+export interface PickedPath {
+  /** Null when the dialog was cancelled. */
+  path: string | null;
+}
+
+export interface AuditEntryView {
+  id: string;
+  entityType: string;
+  entityId: string | null;
+  action: string;
+  operatorName: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface AuditPage {
+  items: AuditEntryView[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface PickedLogo {
   /** Path relative to userData, or null when the dialog was cancelled. */
   path: string | null;
@@ -196,9 +269,28 @@ export interface IpcResponseMap {
   'customers:search': Customer[];
   'customers:walkIn': Customer | null;
   'customers:create': Customer;
+  'customers:list': CustomerPage;
+  'customers:get': Customer | null;
+  'customers:update': Customer;
+  'customers:setActive': Customer;
   'sales:preview': Bill;
   'sales:create': SaleReceipt;
   'sales:getReceipt': SaleReceipt;
+  'sales:search': SalePage;
+  'sales:void': SaleReceipt;
+  'returns:getSale': ReturnableSale;
+  'returns:create': ReturnReceipt;
+  'returns:get': ReturnReceipt;
+  'inventory:movements': MovementPage;
+  'inventory:lowStock': LowStockItem[];
+  'reports:run': ReportTable;
+  'backup:run': BackupResult;
+  'backup:list': BackupFile[];
+  'backup:inspect': BackupInspection;
+  'backup:restore': RestoreResult;
+  'audit:list': AuditPage;
+  'dialog:pickBackupDirectory': PickedPath;
+  'dialog:pickBackupFile': PickedPath;
   'print:listPrinters': PrinterInfo[];
   'print:previewHtml': { html: string; paperSize: PaperSize };
   'print:receipt': PrintOutcome;

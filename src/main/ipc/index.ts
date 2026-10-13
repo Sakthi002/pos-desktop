@@ -1,16 +1,27 @@
 import { app, BrowserWindow } from 'electron';
 import { registerHandler, IpcError } from './registry';
-import { getDbStatus, getDatabase } from '../db/connection';
+import {
+  getDbStatus,
+  getDatabase,
+  getDatabasePath,
+  reopenDatabase,
+  closeDatabase,
+} from '../db/connection';
 import { SettingsService } from '../services/settings-service';
 import { SetupService } from '../services/setup-service';
 import { pickLogo } from '../services/logo-service';
-import { openCsv, saveCsv } from '../services/file-service';
+import { openCsv, saveCsv, pickDirectory, pickBackupFile } from '../services/file-service';
 import { listPrinters, printDocument, exportPdf } from '../services/print-service';
 import { buildReceiptHtml, type PaperSize } from '@shared/receipt';
 import { readLogo } from '../services/logo-service';
 import { CatalogueService, CatalogueError } from '../services/catalogue-service';
 import { SaleService, SaleError } from '../services/sale-service';
-import { CustomerService } from '../services/customer-service';
+import { ReturnService, ReturnError } from '../services/return-service';
+import { InventoryService, InventoryError } from '../services/inventory-service';
+import { CustomerService, CustomerError } from '../services/customer-service';
+import { ReportService, ReportError } from '../services/report-service';
+import { BackupService, BackupError } from '../services/backup-service';
+import { AuditRepository } from '../db/repositories/audit';
 
 export function registerIpcHandlers(): void {
   registerHandler('app:getInfo', () => ({
@@ -90,6 +101,31 @@ export function registerIpcHandlers(): void {
   registerHandler('customers:walkIn', () => customers().walkIn());
   registerHandler('customers:create', (input) => customers().create(input));
 
+  const customerCall = <T>(work: () => T): T => {
+    try {
+      return work();
+    } catch (err) {
+      if (err instanceof CustomerError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('customers:list', (query) => customerCall(() => customers().list(query)));
+  registerHandler('customers:get', ({ id }) => customerCall(() => customers().get(id)));
+  registerHandler('customers:update', (input) => customerCall(() => customers().update(input)));
+  registerHandler('customers:setActive', ({ id, isActive }) =>
+    customerCall(() => customers().setActive(id, isActive)),
+  );
+
+  registerHandler('reports:run', (query) => {
+    try {
+      return new ReportService(getDatabase()).run(query);
+    } catch (err) {
+      if (err instanceof ReportError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  });
+
   registerHandler('sales:preview', (input) => saleService().preview(input));
   registerHandler('sales:create', (input) => {
     try {
@@ -100,6 +136,47 @@ export function registerIpcHandlers(): void {
     }
   });
   registerHandler('sales:getReceipt', ({ id }) => saleService().getReceipt(id));
+  registerHandler('sales:search', (query) => saleService().listSales(query));
+  registerHandler('sales:void', (input) => {
+    try {
+      return saleService().voidSale(input);
+    } catch (err) {
+      if (err instanceof SaleError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  });
+
+  const returns = () => {
+    try {
+      return new ReturnService(getDatabase());
+    } catch (err) {
+      if (err instanceof ReturnError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  const asIpcError = <T>(work: () => T): T => {
+    try {
+      return work();
+    } catch (err) {
+      if (err instanceof ReturnError) throw new IpcError(err.code, err.message);
+      if (err instanceof InventoryError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('returns:getSale', ({ saleId }) =>
+    asIpcError(() => returns().getReturnableSale(saleId)),
+  );
+  registerHandler('returns:create', (input) => asIpcError(() => returns().createReturn(input)));
+  registerHandler('returns:get', ({ id }) => asIpcError(() => returns().getReturn(id)));
+
+  registerHandler('inventory:movements', (query) =>
+    asIpcError(() => new InventoryService(getDatabase()).movements(query)),
+  );
+  registerHandler('inventory:lowStock', () =>
+    asIpcError(() => new InventoryService(getDatabase()).lowStock()),
+  );
 
   /**
    * Builds the document for a stored sale. Preview, PDF and print all go
@@ -174,6 +251,50 @@ export function registerIpcHandlers(): void {
 
   registerHandler('dialog:pickLogo', async () => {
     return pickLogo(focusedWindow());
+  });
+
+  registerHandler('dialog:pickBackupDirectory', async () => pickDirectory(focusedWindow()));
+  registerHandler('dialog:pickBackupFile', async () => pickBackupFile(focusedWindow()));
+
+  const backups = () =>
+    new BackupService({
+      db: () => getDatabase(),
+      dbPath: getDatabasePath(),
+      appVersion: app.getVersion(),
+      closeDb: closeDatabase,
+      openDb: reopenDatabase,
+    });
+
+  const backupCall = async <T>(work: () => Promise<T> | T): Promise<T> => {
+    try {
+      return await work();
+    } catch (err) {
+      if (err instanceof BackupError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('backup:run', async (input) => backupCall(() => backups().run(input)));
+  registerHandler('backup:list', async () => backupCall(() => backups().list()));
+  registerHandler('backup:inspect', async ({ path }) => backupCall(() => backups().inspect(path)));
+  registerHandler('backup:restore', async (input) => backupCall(() => backups().restore(input)));
+
+  registerHandler('audit:list', ({ page, pageSize }) => {
+    const repo = new AuditRepository(getDatabase());
+    return {
+      items: repo.list(pageSize, (page - 1) * pageSize).map((entry) => ({
+        id: entry.id,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        action: entry.action,
+        operatorName: entry.operatorName,
+        details: entry.details,
+        createdAt: entry.createdAt,
+      })),
+      total: repo.count(),
+      page,
+      pageSize,
+    };
   });
 }
 

@@ -78,6 +78,8 @@ function thermalStyles(width: string): string {
     .grand td { font-size: 12.5px; font-weight: bold; padding-top: 1mm; }
     .foot { margin-top: 2mm; font-size: 9.5px; }
     .reprint { border: 1px solid #000; padding: 1mm; margin-bottom: 2mm; font-weight: bold; }
+    .voided { border: 2px solid #000; padding: 1.5mm; margin-bottom: 2mm;
+              font-weight: bold; letter-spacing: 0.12em; }
   `;
 }
 
@@ -118,6 +120,8 @@ function a4Styles(): string {
             font-size: 10px; color: #555; }
     .reprint { display: inline-block; border: 1px solid #111; padding: 2px 8px;
                font-size: 10px; font-weight: 700; margin-bottom: 8px; }
+    .voided { display: block; border: 2px solid #111; padding: 5px 8px; text-align: center;
+              font-size: 13px; font-weight: 700; letter-spacing: 0.14em; margin-bottom: 10px; }
   `;
 }
 
@@ -137,6 +141,9 @@ function renderThermal(input: ReceiptRenderInput): string {
   const { receipt, settings, paperSize } = input;
   const bill = receipt.bill;
   const isTaxInvoice = Boolean(settings.shop.gstin);
+  // A voided invoice can still be printed — for the customer, for the file —
+  // but it must never read as a document anyone can claim against.
+  const isVoided = receipt.status === 'voided';
 
   const items = bill.lines
     .map((line) => {
@@ -177,6 +184,7 @@ function renderThermal(input: ReceiptRenderInput): string {
 <html><head><meta charset="utf-8"><title>${esc(receipt.invoiceNumber)}</title>
 <style>${thermalStyles(PAPER_WIDTH[paperSize])}</style></head>
 <body>
+  ${isVoided ? `<div class="voided c">VOIDED — NOT VALID<br>${esc(receipt.voidReason)}</div>` : ''}
   ${input.isReprint ? '<div class="reprint c">REPRINT</div>' : ''}
   ${input.logoDataUrl ? `<img class="logo" src="${input.logoDataUrl}" alt="">` : ''}
   <div class="c shop">${esc(settings.shop.name)}</div>
@@ -218,6 +226,7 @@ function renderA4(input: ReceiptRenderInput): string {
   const { receipt, settings } = input;
   const bill = receipt.bill;
   const isTaxInvoice = Boolean(settings.shop.gstin);
+  const isVoided = receipt.status === 'voided';
   const interstate = bill.isInterstate;
 
   const rows = bill.lines
@@ -273,6 +282,7 @@ function renderA4(input: ReceiptRenderInput): string {
 <html><head><meta charset="utf-8"><title>${esc(receipt.invoiceNumber)}</title>
 <style>${a4Styles()}</style></head>
 <body>
+  ${isVoided ? `<div class="voided">VOIDED — NOT A VALID INVOICE · ${esc(receipt.voidReason)}</div>` : ''}
   ${input.isReprint ? '<div class="reprint">REPRINT</div>' : ''}
   <div class="head">
     <div>

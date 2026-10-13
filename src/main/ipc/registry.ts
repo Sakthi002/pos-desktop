@@ -8,12 +8,12 @@
  */
 import { ipcMain } from 'electron';
 import {
-  ipcContract,
   type IpcChannel,
   type IpcRequest,
   type IpcResponse,
   type IpcResult,
 } from '@shared/ipc-contract';
+import { validatePayload } from './validate';
 
 export type Handler<C extends IpcChannel> = (
   payload: IpcRequest<C>,
@@ -31,19 +31,11 @@ export class IpcError extends Error {
 
 export function registerHandler<C extends IpcChannel>(channel: C, handler: Handler<C>): void {
   ipcMain.handle(channel, async (_event, rawPayload): Promise<IpcResult<IpcResponse<C>>> => {
-    const parsed = ipcContract[channel].safeParse(rawPayload);
-    if (!parsed.success) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_PAYLOAD',
-          message: parsed.error.issues.map((i) => i.message).join('; '),
-        },
-      };
-    }
+    const parsed = validatePayload(channel, rawPayload);
+    if (!parsed.ok) return parsed;
 
     try {
-      const data = await handler(parsed.data as IpcRequest<C>);
+      const data = await handler(parsed.data);
       return { ok: true, data };
     } catch (err) {
       if (err instanceof IpcError) {

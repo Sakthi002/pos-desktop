@@ -75,6 +75,9 @@ const makeReceipt = (interstate = false): SaleReceipt => {
     ],
     changePaise: 0,
     notes: null,
+    status: 'completed',
+    voidedAt: null,
+    voidReason: null,
     duplicate: false,
   };
 };
@@ -248,5 +251,35 @@ describe('receipt rendering', () => {
     });
     expect(html).toContain('1006');
     expect(html).toContain('HSN');
+  });
+});
+
+describe('voided invoices', () => {
+  for (const paperSize of ['58mm', '80mm', 'a4'] as const) {
+    it(`marks a voided sale on ${paperSize} so it cannot be claimed against`, () => {
+      const receipt = makeReceipt();
+      const html = buildReceiptHtml({
+        receipt: {
+          ...receipt,
+          status: 'voided',
+          voidedAt: '2026-10-12T11:00:00.000Z',
+          voidReason: 'Customer cancelled',
+        },
+        settings: settings(),
+        paperSize,
+      });
+
+      expect(html).toContain('VOIDED');
+      expect(html).toContain('Customer cancelled');
+    });
+  }
+
+  it('leaves a completed invoice unmarked', () => {
+    const html = buildReceiptHtml({
+      receipt: makeReceipt(),
+      settings: settings(),
+      paperSize: 'a4',
+    });
+    expect(html).not.toContain('VOIDED');
   });
 });

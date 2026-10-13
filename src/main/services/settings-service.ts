@@ -11,15 +11,26 @@ import {
   settingsPatchSchema,
   type AppSettings,
   type SettingsPatch,
+  type SettingsSection,
 } from '@shared/settings';
 import { SettingsRepository } from '../db/repositories/settings';
+import { AuditRepository } from '../db/repositories/audit';
 
-const SECTIONS = ['shop', 'locale', 'invoice', 'tax', 'receipt', 'payment', 'inventory'] as const;
+const SECTIONS = [
+  'shop',
+  'locale',
+  'invoice',
+  'tax',
+  'receipt',
+  'payment',
+  'inventory',
+  'backup',
+] as const;
 
 export class SettingsService {
   private readonly repo: SettingsRepository;
 
-  constructor(db: Database) {
+  constructor(private readonly db: Database) {
     this.repo = new SettingsRepository(db);
   }
 
@@ -41,7 +52,14 @@ export class SettingsService {
     const stored = this.storedSections();
     if (stored['shop'] === undefined) return null;
 
-    const parsed = appSettingsSchema.safeParse(stored);
+    // A section this version added is simply absent in a database written by an
+    // older one. Treating it as an empty object lets the schema supply its
+    // defaults, instead of failing to load settings and leaving the app unable
+    // to start after an update.
+    const sections: Record<string, unknown> = {};
+    for (const section of SECTIONS) sections[section] = stored[section] ?? {};
+
+    const parsed = appSettingsSchema.safeParse(sections);
     if (!parsed.success) {
       // Stored settings that no longer satisfy the schema would otherwise brick
       // the app; surface it rather than silently substituting defaults.
@@ -71,22 +89,57 @@ export class SettingsService {
    * Merges a partial update section by section, validates the result as a
    * whole, then writes only the sections that changed.
    */
-  update(patch: SettingsPatch): AppSettings {
+  update(patch: SettingsPatch, options: { audit?: boolean } = {}): AppSettings {
     const validPatch = settingsPatchSchema.parse(patch);
     const current = this.require();
 
+    // Zod re-applies a field's default when the caller leaves it out, even on
+    // a partial schema, so merging the parsed patch wholesale would quietly
+    // reset every field the caller did not mention. Only the keys actually
+    // sent are taken, with their validated values.
+    const sentKeys = (section: SettingsSection): string[] => {
+      const raw = (patch as Record<string, unknown>)[section];
+      return raw && typeof raw === 'object' ? Object.keys(raw) : [];
+    };
+
     const merged: Record<string, unknown> = {};
     for (const section of SECTIONS) {
-      merged[section] = { ...current[section], ...(validPatch[section] ?? {}) };
+      const validSection = (validPatch[section] ?? {}) as Record<string, unknown>;
+      const applied = Object.fromEntries(
+        sentKeys(section)
+          .filter((key) => key in validSection)
+          .map((key) => [key, validSection[key]]),
+      );
+      merged[section] = { ...current[section], ...applied };
     }
 
     const next = appSettingsSchema.parse(merged);
 
+    const changed: Record<string, unknown> = {};
     for (const section of SECTIONS) {
-      if (validPatch[section] !== undefined) {
-        this.repo.set(`settings.${section}`, next[section]);
+      if (validPatch[section] === undefined) continue;
+      this.repo.set(`settings.${section}`, next[section]);
+
+      for (const key of sentKeys(section)) {
+        const value = (next[section] as Record<string, unknown>)[key];
+        if ((current[section] as Record<string, unknown>)[key] !== value) {
+          changed[`${section}.${key}`] = value;
+        }
       }
     }
+
+    // A settings change can alter how every invoice is taxed, so it belongs in
+    // the trail. The scheduler's own bookkeeping does not.
+    if (options.audit !== false && Object.keys(changed).length > 0) {
+      new AuditRepository(this.db).record({
+        entityType: 'settings',
+        entityId: null,
+        action: 'update',
+        operatorId: null,
+        details: { changed },
+      });
+    }
+
     return next;
   }
 

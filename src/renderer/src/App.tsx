@@ -7,11 +7,36 @@ import { Settings } from './pages/Settings';
 import { Products } from './pages/Products';
 import { Categories } from './pages/Categories';
 import { Pos } from './pages/Pos';
+import { Sales } from './pages/Sales';
+import { Inventory } from './pages/Inventory';
+import { Customers } from './pages/Customers';
+import { Reports } from './pages/Reports';
 import { AppShell, type Route } from './components/AppShell';
 import type { AppInfo, DbStatus } from '@shared/ipc-contract';
 import type { AppSettings } from '@shared/settings';
 
 type Phase = 'loading' | 'setup' | 'ready' | 'error';
+
+const ROUTES: Route[] = [
+  'dashboard',
+  'pos',
+  'sales',
+  'products',
+  'categories',
+  'inventory',
+  'customers',
+  'reports',
+  'settings',
+];
+
+/**
+ * The window remembers which screen it was on across a reload, which matters
+ * during development and costs nothing in production.
+ */
+const routeFromHash = (): Route => {
+  const candidate = window.location.hash.replace(/^#/, '') as Route;
+  return ROUTES.includes(candidate) ? candidate : 'pos';
+};
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('loading');
@@ -19,7 +44,12 @@ export function App() {
   const [db, setDb] = useState<DbStatus | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [route, setRoute] = useState<Route>('pos');
+  const [route, setRoute] = useState<Route>(routeFromHash);
+
+  const navigate = useCallback((next: Route) => {
+    setRoute(next);
+    window.location.hash = next;
+  }, []);
 
   const load = useCallback(async (signal?: { cancelled: boolean }) => {
     const live = () => !signal?.cancelled;
@@ -99,14 +129,18 @@ export function App() {
   return (
     <AppShell
       route={route}
-      onNavigate={setRoute}
+      onNavigate={navigate}
       settings={settings}
       db={db}
       version={info?.version ?? '0.0.0'}
     >
       {route === 'pos' && <Pos settings={settings} />}
+      {route === 'sales' && <Sales settings={settings} />}
       {route === 'products' && <Products settings={settings} />}
       {route === 'categories' && <Categories />}
+      {route === 'inventory' && <Inventory />}
+      {route === 'customers' && <Customers />}
+      {route === 'reports' && <Reports />}
       {route === 'settings' && <Settings settings={settings} onSaved={setSettings} />}
       {route === 'dashboard' && <Placeholder info={info} db={db} settings={settings} />}
     </AppShell>

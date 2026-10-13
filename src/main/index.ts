@@ -1,9 +1,18 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, shell, session } from 'electron';
 import { registerIpcHandlers } from './ipc';
-import { openDatabase, closeDatabase } from './db/connection';
+import {
+  openDatabase,
+  closeDatabase,
+  reopenDatabase,
+  getDatabase,
+  getDatabasePath,
+} from './db/connection';
+import { startBackupScheduler } from './services/backup-scheduler';
 
 const isDev = !app.isPackaged;
+
+let stopBackupScheduler: (() => void) | null = null;
 
 /**
  * Content Security Policy.
@@ -88,11 +97,16 @@ function createWindow(): BrowserWindow {
     if (!allowed) event.preventDefault();
   });
 
+  // Development hook: POS_ROUTE opens the window on a given screen, so a
+  // capture can target one without clicking through the app first.
+  const route = isDev ? process.env['POS_ROUTE'] : undefined;
+
   const devServer = process.env['ELECTRON_RENDERER_URL'];
   if (devServer) {
-    void window.loadURL(devServer);
+    void window.loadURL(route ? `${devServer}#${route}` : devServer);
   } else {
-    void window.loadFile(join(import.meta.dirname, '../renderer/index.html'));
+    const indexHtml = join(import.meta.dirname, '../renderer/index.html');
+    void (route ? window.loadFile(indexHtml, { hash: route }) : window.loadFile(indexHtml));
   }
 
   return window;
@@ -117,6 +131,14 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   createWindow();
 
+  stopBackupScheduler = startBackupScheduler({
+    db: () => getDatabase(),
+    dbPath: getDatabasePath(),
+    appVersion: app.getVersion(),
+    closeDb: closeDatabase,
+    openDb: reopenDatabase,
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -126,4 +148,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', closeDatabase);
+app.on('before-quit', () => {
+  stopBackupScheduler?.();
+  closeDatabase();
+});

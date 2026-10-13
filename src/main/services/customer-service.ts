@@ -5,7 +5,15 @@
  * invoice, and a state code when GST applies. Anything more is CRM.
  */
 import type { Database } from 'better-sqlite3';
-import { customerInputSchema, type Customer } from '@shared/customer';
+import {
+  customerInputSchema,
+  customerQuerySchema,
+  customerUpdateSchema,
+  type Customer,
+  type CustomerPage,
+  type CustomerQuery,
+  type CustomerSummary,
+} from '@shared/customer';
 import { newId, now, fromDbBool, toDbBool } from '../db/repositories/base';
 
 interface Row {
@@ -33,6 +41,16 @@ const toCustomer = (r: Row): Customer => ({
 });
 
 const blankToNull = (v: string | null | undefined): string | null => (v?.trim() ? v.trim() : null);
+
+export class CustomerError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'CustomerError';
+  }
+}
 
 export class CustomerService {
   private readonly companyId: string;
@@ -93,5 +111,109 @@ export class CustomerService {
 
     const row = this.db.prepare('SELECT * FROM customers WHERE id = ?').get(id) as Row;
     return toCustomer(row);
+  }
+
+  get(id: string): Customer | null {
+    const row = this.db
+      .prepare('SELECT * FROM customers WHERE id = ? AND company_id = ?')
+      .get(id, this.companyId) as Row | undefined;
+    return row ? toCustomer(row) : null;
+  }
+
+  update(input: unknown): Customer {
+    const parsed = customerUpdateSchema.parse(input);
+    const existing = this.get(parsed.id);
+    if (!existing) throw new CustomerError('NOT_FOUND', 'Customer not found.');
+
+    this.db
+      .prepare(
+        `UPDATE customers
+            SET name = ?, phone = ?, email = ?, address = ?, gstin = ?, state_code = ?,
+                updated_at = ?
+          WHERE id = ? AND company_id = ?`,
+      )
+      .run(
+        parsed.name,
+        blankToNull(parsed.phone),
+        blankToNull(parsed.email),
+        blankToNull(parsed.address),
+        blankToNull(parsed.gstin),
+        blankToNull(parsed.stateCode),
+        now(),
+        parsed.id,
+        this.companyId,
+      );
+
+    return this.get(parsed.id) as Customer;
+  }
+
+  /**
+   * Customers are deactivated, never deleted — their name is printed on past
+   * invoices. The walk-in row stays active because the till needs it.
+   */
+  setActive(id: string, isActive: boolean): Customer {
+    const existing = this.get(id);
+    if (!existing) throw new CustomerError('NOT_FOUND', 'Customer not found.');
+    if (existing.isWalkIn && !isActive) {
+      throw new CustomerError('WALK_IN', 'The walk-in customer cannot be deactivated.');
+    }
+
+    this.db
+      .prepare('UPDATE customers SET is_active = ?, updated_at = ? WHERE id = ? AND company_id = ?')
+      .run(toDbBool(isActive), now(), id, this.companyId);
+
+    return this.get(id) as Customer;
+  }
+
+  /** The customer list, with what each of them has spent. */
+  list(input: unknown): CustomerPage {
+    const query: CustomerQuery = customerQuerySchema.parse(input ?? {});
+
+    const where: string[] = ['c.company_id = @companyId'];
+    const params: Record<string, unknown> = { companyId: this.companyId };
+
+    if (query.search) {
+      where.push('(c.name LIKE @like OR c.phone LIKE @like OR c.gstin LIKE @like)');
+      params['like'] = `%${query.search}%`;
+    }
+    if (query.status === 'active') where.push('c.is_active = 1');
+    if (query.status === 'inactive') where.push('c.is_active = 0');
+
+    const filter = `WHERE ${where.join(' AND ')}`;
+
+    const total = (
+      this.db.prepare(`SELECT COUNT(*) AS n FROM customers c ${filter}`).get(params) as {
+        n: number;
+      }
+    ).n;
+
+    // Only completed sales count towards what a customer has spent.
+    const rows = this.db
+      .prepare(
+        `SELECT c.*,
+                COALESCE((SELECT COUNT(*) FROM sales s
+                           WHERE s.customer_id = c.id AND s.status = 'completed'), 0) AS invoices,
+                COALESCE((SELECT SUM(s.total_paise) FROM sales s
+                           WHERE s.customer_id = c.id AND s.status = 'completed'), 0) AS total_paise,
+                (SELECT MAX(s.invoice_date) FROM sales s
+                  WHERE s.customer_id = c.id AND s.status = 'completed') AS last_purchase_at
+           FROM customers c ${filter}
+          ORDER BY c.is_walk_in DESC, c.name
+          LIMIT @limit OFFSET @offset`,
+      )
+      .all({
+        ...params,
+        limit: query.pageSize,
+        offset: (query.page - 1) * query.pageSize,
+      }) as (Row & { invoices: number; total_paise: number; last_purchase_at: string | null })[];
+
+    const items: CustomerSummary[] = rows.map((row) => ({
+      ...toCustomer(row),
+      invoices: row.invoices,
+      totalPaise: row.total_paise,
+      lastPurchaseAt: row.last_purchase_at,
+    }));
+
+    return { items, total, page: query.page, pageSize: query.pageSize };
   }
 }

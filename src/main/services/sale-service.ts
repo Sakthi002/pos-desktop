@@ -15,17 +15,25 @@ import type { Database } from 'better-sqlite3';
 import {
   saleInputSchema,
   billPreviewSchema,
+  saleQuerySchema,
+  voidSaleSchema,
   type BillPreviewInput,
   type SaleInput,
   type SaleReceipt,
   type SalePayment,
   type PaymentMethod,
+  type SalePage,
+  type SaleQuery,
+  type SaleStatus,
 } from '@shared/sale';
 import { calculateBill, type Bill, type BillLineInput } from '@shared/billing';
 import { financialYearOf, type AppSettings } from '@shared/settings';
 import { formatQuantity, precisionFor } from '@shared/quantity';
 import { newId, now, inTransaction } from '../db/repositories/base';
+import { SalesRepository } from '../db/repositories/sales';
+import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
+import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class SaleError extends Error {
   constructor(
@@ -35,13 +43,6 @@ export class SaleError extends Error {
     super(message);
     this.name = 'SaleError';
   }
-}
-
-interface Context {
-  companyId: string;
-  branchId: string;
-  branchStateCode: string | null;
-  operatorId: string | null;
 }
 
 interface ProductRow {
@@ -58,38 +59,22 @@ interface ProductRow {
 }
 
 export class SaleService {
-  private readonly ctx: Context;
+  private readonly ctx: BranchContext;
   private readonly settings: AppSettings;
+  private readonly history: SalesRepository;
+  private readonly audit: AuditRepository;
 
   constructor(private readonly db: Database) {
-    const row = db
-      .prepare(
-        `SELECT c.id AS company_id, b.id AS branch_id, b.state_code AS branch_state_code,
-                (SELECT o.id FROM operators o WHERE o.branch_id = b.id ORDER BY o.created_at LIMIT 1) AS operator_id
-           FROM companies c JOIN branches b ON b.company_id = c.id
-          ORDER BY c.created_at LIMIT 1`,
-      )
-      .get() as
-      | {
-          company_id: string;
-          branch_id: string;
-          branch_state_code: string | null;
-          operator_id: string | null;
-        }
-      | undefined;
-
-    if (!row) throw new SaleError('SETUP_INCOMPLETE', 'Complete setup before billing.');
-
-    this.ctx = {
-      companyId: row.company_id,
-      branchId: row.branch_id,
-      branchStateCode: row.branch_state_code,
-      operatorId: row.operator_id,
-    };
+    const ctx = loadBranchContext(db);
+    if (!ctx) throw new SaleError('SETUP_INCOMPLETE', 'Complete setup before billing.');
+    this.ctx = ctx;
 
     const settings = new SettingsService(db).get();
     if (!settings) throw new SaleError('SETUP_INCOMPLETE', 'Complete setup before billing.');
     this.settings = settings;
+
+    this.history = new SalesRepository(db, this.ctx.companyId);
+    this.audit = new AuditRepository(db);
   }
 
   /** Customer's state decides CGST+SGST versus IGST; unknown means local. */
@@ -409,6 +394,85 @@ export class SaleService {
     return { ...this.getReceipt(saleId), duplicate: false };
   }
 
+  /** Invoice list for the history screen: search, filters and pagination. */
+  listSales(input: unknown): SalePage {
+    const query: SaleQuery = saleQuerySchema.parse(input ?? {});
+    const { items, totals } = this.history.search(query);
+    return {
+      items,
+      total: totals.total,
+      page: query.page,
+      pageSize: query.pageSize,
+      completedCount: totals.completedCount,
+      completedTotalPaise: totals.completedTotalPaise,
+      voidedCount: totals.voidedCount,
+      returnedTotalPaise: totals.returnedTotalPaise,
+    };
+  }
+
+  /**
+   * Voids a sale: the row stays, the invoice number stays, the snapshot stays.
+   * Status, reversal movements and the audit entry commit together, so stock
+   * can never come back without a record of who sent it back and why.
+   */
+  voidSale(input: unknown): SaleReceipt {
+    const parsed = voidSaleSchema.parse(input);
+
+    const sale = this.history.findForVoid(parsed.id);
+    if (!sale) throw new SaleError('NOT_FOUND', 'Sale not found.');
+    if (sale.status === 'voided') {
+      throw new SaleError('ALREADY_VOIDED', `Invoice ${sale.invoiceNumber} is already voided.`);
+    }
+    // Part of this invoice has already been credited back. Voiding it now would
+    // return the returned stock a second time, so the credit note has to be the
+    // only reversal.
+    if (this.history.hasReturns(sale.id)) {
+      throw new SaleError(
+        'HAS_RETURNS',
+        `Invoice ${sale.invoiceNumber} has a return against it, so it cannot be voided.`,
+      );
+    }
+
+    const at = now();
+
+    inTransaction(this.db, () => {
+      this.history.markVoided(sale.id, parsed.reason, this.ctx.operatorId, at);
+
+      // Reverse exactly what the sale took out: an untracked service item took
+      // nothing, so it gets nothing back.
+      const movements = this.history.saleMovements(sale.id);
+      for (const movement of movements) {
+        this.history.insertVoidReversal({
+          branchId: sale.branchId,
+          productId: movement.productId,
+          quantityMilli: -movement.quantityMilli,
+          saleId: sale.id,
+          reason: `Void of invoice ${sale.invoiceNumber}: ${parsed.reason}`,
+          operatorId: this.ctx.operatorId,
+          at,
+        });
+      }
+
+      this.audit.record(
+        {
+          entityType: 'sale',
+          entityId: sale.id,
+          action: 'void',
+          operatorId: this.ctx.operatorId,
+          details: {
+            invoiceNumber: sale.invoiceNumber,
+            totalPaise: sale.totalPaise,
+            reason: parsed.reason,
+            stockLinesReversed: movements.length,
+          },
+        },
+        at,
+      );
+    });
+
+    return this.getReceipt(sale.id);
+  }
+
   getReceipt(saleId: string): SaleReceipt {
     const sale = this.db.prepare('SELECT * FROM sales WHERE id = ?').get(saleId) as
       Record<string, unknown> | undefined;
@@ -503,6 +567,9 @@ export class SaleService {
       payments: mappedPayments,
       changePaise: mappedPayments.reduce((a, p) => a + (p.changePaise ?? 0), 0),
       notes: (sale['notes'] as string | null) ?? null,
+      status: sale['status'] as SaleStatus,
+      voidedAt: (sale['voided_at'] as string | null) ?? null,
+      voidReason: (sale['void_reason'] as string | null) ?? null,
       duplicate: false,
     };
   }
