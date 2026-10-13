@@ -33,6 +33,7 @@ import { newId, now, inTransaction } from '../db/repositories/base';
 import { SalesRepository } from '../db/repositories/sales';
 import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
+import { LedgerService } from './ledger-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class SaleError extends Error {
@@ -63,6 +64,7 @@ export class SaleService {
   private readonly settings: AppSettings;
   private readonly history: SalesRepository;
   private readonly audit: AuditRepository;
+  private readonly ledger: LedgerService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -75,6 +77,7 @@ export class SaleService {
 
     this.history = new SalesRepository(db, this.ctx.companyId);
     this.audit = new AuditRepository(db);
+    this.ledger = new LedgerService(db);
   }
 
   /** Customer's state decides CGST+SGST versus IGST; unknown means local. */
@@ -372,6 +375,8 @@ export class SaleService {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       );
 
+      // Still inside the sale's transaction: the books move with the sale or
+      // not at all.
       let changeRemaining = overpaid;
       for (const payment of parsed.payments) {
         // Change is attributed to the cash payment it came from.
@@ -389,6 +394,8 @@ export class SaleService {
           timestamp,
         );
       }
+
+      this.ledger.postSale(saleId);
     });
 
     return { ...this.getReceipt(saleId), duplicate: false };
@@ -452,6 +459,8 @@ export class SaleService {
           at,
         });
       }
+
+      this.ledger.postSaleVoid(sale.id);
 
       this.audit.record(
         {

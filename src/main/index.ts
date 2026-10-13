@@ -9,6 +9,7 @@ import {
   getDatabasePath,
 } from './db/connection';
 import { startBackupScheduler } from './services/backup-scheduler';
+import { LedgerService } from './services/ledger-service';
 
 const isDev = !app.isPackaged;
 
@@ -161,6 +162,18 @@ app.whenReady().then(() => {
   );
 
   openDatabase();
+
+  // An update can bring the ledger to a shop that has been trading for months.
+  // Posting what is missing is idempotent, so this runs on every start and
+  // does nothing once the books have caught up.
+  try {
+    const posted = new LedgerService(getDatabase()).postMissing();
+    if (posted > 0) console.log(`[ledger] posted ${posted} document(s) that had no voucher`);
+  } catch (err) {
+    // Setup may not be complete yet; the books can wait until it is.
+    console.warn('[ledger] catch-up skipped:', err instanceof Error ? err.message : err);
+  }
+
   registerIpcHandlers();
   installApplicationMenu();
   createWindow();

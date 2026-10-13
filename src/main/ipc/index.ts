@@ -23,6 +23,7 @@ import { ReportService, ReportError } from '../services/report-service';
 import { DashboardService, DashboardError } from '../services/dashboard-service';
 import { SupplierService, SupplierError } from '../services/supplier-service';
 import { PurchaseService, PurchaseError } from '../services/purchase-service';
+import { LedgerService, LedgerError } from '../services/ledger-service';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 
@@ -176,6 +177,33 @@ export function registerIpcHandlers(): void {
   );
   registerHandler('purchases:payment', (input) =>
     buying(({ purchases }) => purchases.recordPayment(input)),
+  );
+
+  const books = <T>(work: (ledger: LedgerService) => T): T => {
+    try {
+      return work(new LedgerService(getDatabase()));
+    } catch (err) {
+      if (err instanceof LedgerError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('ledger:accounts', () => books((ledger) => ledger.accounts()));
+  registerHandler('ledger:trialBalance', ({ fromIso, toIso }) =>
+    books((ledger) => ledger.trialBalance(fromIso, toIso)),
+  );
+  registerHandler('ledger:statement', (query) => books((ledger) => ledger.statement(query)));
+  registerHandler('ledger:createAccount', (input) =>
+    books((ledger) => ledger.createAccount(input)),
+  );
+  registerHandler('ledger:journal', (input) =>
+    books((ledger) => ({ voucherId: ledger.postJournal(input) })),
+  );
+  registerHandler('ledger:partyStatement', (query) =>
+    books((ledger) => ledger.partyStatement(query)),
+  );
+  registerHandler('ledger:openingBalances', (input) =>
+    books((ledger) => ({ voucherId: ledger.postOpeningBalances(input) })),
   );
 
   registerHandler('dashboard:summary', (query) => {

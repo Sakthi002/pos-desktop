@@ -897,6 +897,11 @@ table.data tbody tr:hover {
   background: var(--raised);
 }
 
+/* A row that opens something: the pointer is the only hint it needs. */
+table.data tbody tr.clickable {
+  cursor: pointer;
+}
+
 table.data tr.muted-row td {
   color: var(--faint);
 }

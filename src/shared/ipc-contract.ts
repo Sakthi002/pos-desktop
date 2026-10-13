@@ -40,6 +40,17 @@ import {
 import { reportQuerySchema, type ReportTable } from './reports';
 import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
 import {
+  accountInputSchema,
+  journalSchema,
+  ledgerQuerySchema,
+  openingBalanceSchema,
+  partyStatementSchema,
+  type Account,
+  type AccountBalance,
+  type LedgerStatement,
+  type PartyStatement,
+} from './ledger';
+import {
   cancelPurchaseSchema,
   purchaseInputSchema,
   purchaseQuerySchema,
@@ -147,6 +158,17 @@ export const ipcContract = {
   'purchases:createReturn': purchaseReturnInputSchema,
   'purchases:getReturn': z.object({ id: z.string().uuid() }),
   'purchases:payment': supplierPaymentSchema,
+
+  'ledger:accounts': z.void(),
+  'ledger:trialBalance': z.object({
+    fromIso: z.iso.datetime(),
+    toIso: z.iso.datetime(),
+  }),
+  'ledger:statement': ledgerQuerySchema,
+  'ledger:partyStatement': partyStatementSchema,
+  'ledger:openingBalances': openingBalanceSchema,
+  'ledger:createAccount': accountInputSchema,
+  'ledger:journal': journalSchema,
 
   'backup:run': backupRunSchema,
   'backup:list': z.void(),
@@ -333,6 +355,13 @@ export interface IpcResponseMap {
   'purchases:createReturn': PurchaseReturnReceipt;
   'purchases:getReturn': PurchaseReturnReceipt;
   'purchases:payment': { id: string; outstandingPaise: number };
+  'ledger:accounts': Account[];
+  'ledger:trialBalance': AccountBalance[];
+  'ledger:statement': LedgerStatement;
+  'ledger:partyStatement': PartyStatement;
+  'ledger:openingBalances': { voucherId: string };
+  'ledger:createAccount': Account;
+  'ledger:journal': { voucherId: string };
   'backup:run': BackupResult;
   'backup:list': BackupFile[];
   'backup:inspect': BackupInspection;

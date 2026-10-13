@@ -19,6 +19,8 @@ import {
 import { formatQuantity, precisionFor } from '@shared/quantity';
 import { ReportsRepository, type Range } from '../db/repositories/reports';
 import { InventoryRepository } from '../db/repositories/inventory';
+import { LedgerService } from './ledger-service';
+import { ACCOUNTS } from '@shared/ledger';
 import { now } from '../db/repositories/base';
 import { loadBranchContext } from './branch-context';
 
@@ -73,12 +75,14 @@ const rangeLabel = (range: Range): string =>
 export class ReportService {
   private readonly repo: ReportsRepository;
   private readonly inventory: InventoryRepository;
+  private readonly ledger: LedgerService;
 
   constructor(db: Database) {
     const ctx = loadBranchContext(db);
     if (!ctx) throw new ReportError('SETUP_INCOMPLETE', 'Complete setup first.');
     this.repo = new ReportsRepository(db, ctx.companyId);
     this.inventory = new InventoryRepository(db, ctx.companyId);
+    this.ledger = new LedgerService(db);
   }
 
   run(input: unknown): ReportTable {
@@ -128,6 +132,12 @@ export class ReportService {
         return { ...base, ...this.purchaseReturns(range) };
       case 'supplier-outstanding':
         return { ...base, ...this.supplierOutstanding() };
+      case 'trial-balance':
+        return { ...base, ...this.trialBalance(range) };
+      case 'cash-book':
+        return { ...base, ...this.cashBook(range) };
+      case 'day-book':
+        return { ...base, ...this.dayBook(range) };
       case 'stock-on-hand':
         return { ...base, ...this.stockOnHand() };
       case 'stock-movement':
@@ -599,6 +609,114 @@ export class ReportService {
         owed: sum((s) => s.owed),
       },
       note: 'Everything bought since the shop opened, less returns and payments. A negative figure means the supplier owes us.',
+    };
+  }
+
+  // ─── The books ────────────────────────────────────────────────────────────
+
+  private trialBalance(range: Range): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const balances = this.ledger
+      .trialBalance(range.fromIso, range.toIso)
+      .filter((a) => a.debitPaise + a.creditPaise > 0);
+
+    const rows: ReportRow[] = balances.map((a) => ({
+      code: a.code,
+      account: a.name,
+      group: a.group,
+      debit: a.debitPaise,
+      credit: a.creditPaise,
+    }));
+
+    const debit = balances.reduce((a, r) => a + r.debitPaise, 0);
+    const credit = balances.reduce((a, r) => a + r.creditPaise, 0);
+
+    return {
+      columns: [
+        text('code', 'Code'),
+        text('account', 'Account'),
+        text('group', 'Group'),
+        money('debit', 'Debit'),
+        money('credit', 'Credit'),
+      ],
+      rows,
+      totals: { code: '', account: 'Total', group: '', debit, credit },
+      note:
+        debit === credit
+          ? 'Debits equal credits, as they must.'
+          : `Out of balance by ${debit - credit} paise. This is a defect; report it.`,
+    };
+  }
+
+  private cashBook(range: Range): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const statement = this.ledger.statement({
+      accountCode: ACCOUNTS.cash,
+      fromIso: range.fromIso,
+      toIso: range.toIso,
+      limit: 2000,
+    });
+
+    const rows: ReportRow[] = statement.lines.map((line) => ({
+      date: dateTimeLabel(line.entryDate),
+      voucher: line.voucherNo,
+      kind: line.voucherType.replace('_', ' '),
+      narration: line.narration,
+      received: line.debitPaise || null,
+      paid: line.creditPaise || null,
+      balance: line.balancePaise,
+    }));
+
+    return {
+      columns: [
+        text('date', 'Date'),
+        text('voucher', 'Voucher'),
+        text('kind', 'Kind'),
+        text('narration', 'Narration'),
+        money('received', 'Received'),
+        money('paid', 'Paid out'),
+        money('balance', 'Balance'),
+      ],
+      rows,
+      totals: {
+        date: '',
+        voucher: '',
+        kind: '',
+        narration: 'Closing',
+        received: statement.lines.reduce((a, l) => a + l.debitPaise, 0),
+        paid: statement.lines.reduce((a, l) => a + l.creditPaise, 0),
+        balance: statement.closingPaise,
+      },
+      note: `Opening balance ${statement.openingPaise} paise. Cash only; card and UPI have their own accounts.`,
+    };
+  }
+
+  private dayBook(range: Range): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const entries = this.ledger.dayBook(range.fromIso, range.toIso);
+
+    const rows: ReportRow[] = entries.map((v) => ({
+      date: dateTimeLabel(v.voucher_date),
+      voucher: v.voucher_no,
+      kind: v.voucher_type.replace('_', ' '),
+      narration: v.narration,
+      amount: v.amount,
+    }));
+
+    return {
+      columns: [
+        text('date', 'Date'),
+        text('voucher', 'Voucher'),
+        text('kind', 'Kind'),
+        text('narration', 'Narration'),
+        money('amount', 'Amount'),
+      ],
+      rows,
+      totals: {
+        date: '',
+        voucher: '',
+        kind: '',
+        narration: 'Total posted',
+        amount: entries.reduce((a, v) => a + v.amount, 0),
+      },
+      note: 'Every voucher posted in the range, newest first.',
     };
   }
 

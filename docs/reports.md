@@ -62,8 +62,9 @@ Labelled an estimate wherever it appears, because it is one.
   came back. The sales summary and the product report compute it from the same
   per-product basis, so the two always agree.
 - Cost is the product's **current** cost price multiplied by the quantity sold.
-  v1 has no purchase history, so an item sold before its cost was last edited is
-  costed at today's figure.
+  A purchase bill moves that cost price to the latest ex-tax rate paid, but no
+  sale stores the cost it was sold at, so an item sold before the last purchase
+  is costed at today's figure.
 - A product deleted from the catalogue has no cost, and contributes none.
 
 Treat it as a trend, not a margin you could file.
@@ -79,6 +80,35 @@ Treat it as a trend, not a margin you could file.
   make every product at zero stock look like an alert.
 - **Stock movement** lists every change in the range, newest first. Quantities
   are shown with their unit and are never summed across units.
+
+## Purchases
+
+- A purchase is counted on its **bill date**, which is the supplier's date, not
+  the day it was keyed in. A bill entered a week late lands in the week it
+  belongs to.
+- A cancelled bill is excluded everywhere, exactly as a voided sale is.
+- **Purchase returns** are reported separately rather than netted off, because a
+  shop checking a supplier's statement needs both figures.
+- **Supplier outstanding** is derived from the documents — bills, less returns
+  settled as a debit note, less payments — never from a stored balance.
+
+## The books
+
+Three reports read the ledger rather than the documents, so they are the place
+to check that everything else adds up.
+
+- **Trial balance** lists every account's debits and credits in the range. The
+  totals are equal or something is wrong; nothing in the app can post an
+  unbalanced voucher, so in practice they are equal.
+- **Cash book** is the cash account's own statement: received, paid out, and the
+  balance after each entry. Card and UPI have their own accounts and are not
+  mixed in, because a drawer count only ever reconciles against cash.
+- **Day book** lists every voucher in the range, newest first, with the document
+  it accounts for.
+
+Inventory is accounted periodically: a purchase is an expense when it is bought,
+not an asset that becomes an expense when it is sold. Stock on hand is therefore
+a stock report, not a ledger balance.
 
 ## CSV export
 

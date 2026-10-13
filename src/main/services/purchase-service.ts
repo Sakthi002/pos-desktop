@@ -35,6 +35,7 @@ import { PurchasingRepository } from '../db/repositories/purchasing';
 import { CatalogueRepository } from '../db/repositories/catalogue';
 import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
+import { LedgerService } from './ledger-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class PurchaseError extends Error {
@@ -64,6 +65,7 @@ export class PurchaseService {
   private readonly repo: PurchasingRepository;
   private readonly catalogue: CatalogueRepository;
   private readonly audit: AuditRepository;
+  private readonly ledger: LedgerService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -79,6 +81,7 @@ export class PurchaseService {
     this.repo = new PurchasingRepository(db, ctx.companyId);
     this.catalogue = new CatalogueRepository(db, ctx.companyId);
     this.audit = new AuditRepository(db);
+    this.ledger = new LedgerService(db);
   }
 
   private loadProducts(ids: string[]): Map<string, ProductRow> {
@@ -245,8 +248,12 @@ export class PurchaseService {
         }
       });
 
+      // The bill is a liability to the supplier; paying it is a second
+      // voucher, because the two are separate events even on the same day.
+      this.ledger.postPurchase(purchaseId);
+
       if (parsed.payment) {
-        this.repo.insertSupplierPayment({
+        const paymentId = this.repo.insertSupplierPayment({
           supplierId: supplier.id,
           purchaseId,
           branchId: this.ctx.branchId,
@@ -257,6 +264,7 @@ export class PurchaseService {
           notes: null,
           at,
         });
+        this.ledger.postSupplierPayment(paymentId);
       }
 
       this.audit.record(
@@ -346,6 +354,8 @@ export class PurchaseService {
           operatorId: this.ctx.operatorId,
         });
       }
+
+      this.ledger.postPurchaseCancel(purchase.id);
 
       this.audit.record(
         {
@@ -506,9 +516,11 @@ export class PurchaseService {
         }
       }
 
+      this.ledger.postPurchaseReturn(returnId);
+
       // Money back now, rather than a debit note left on their account.
       if (parsed.settlement !== 'debit_note') {
-        this.repo.insertSupplierPayment({
+        const refundId = this.repo.insertSupplierPayment({
           supplierId: purchase.supplierId,
           purchaseId: purchase.id,
           branchId: this.ctx.branchId,
@@ -519,6 +531,7 @@ export class PurchaseService {
           notes: 'Refund from supplier against a return',
           at,
         });
+        this.ledger.postSupplierPayment(refundId);
       }
 
       this.audit.record(
@@ -588,6 +601,8 @@ export class PurchaseService {
         notes: parsed.notes ?? null,
         at,
       });
+
+      this.ledger.postSupplierPayment(paymentId);
 
       this.audit.record(
         {

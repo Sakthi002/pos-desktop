@@ -88,9 +88,16 @@ Invoice numbers are a local per-branch sequence and are not globally unique.
 
 ## State
 
-Phases 0-9 complete, and Phase 10 except packaging: foundation, schema, settings
-and setup, catalogue, billing, receipts, sales history, inventory and returns,
-customers and reports, backup and audit, tests and documentation.
+Phases 0-9 complete, Phase 10 except Windows packaging, and phases 11 and 12:
+foundation, schema, settings and setup, catalogue, billing, receipts, sales
+history, inventory and returns, customers and reports, backup and audit, tests
+and documentation, suppliers and purchases, and the double-entry ledger.
+
+The ledger posts itself from the documents — a sale, a credit note, a purchase,
+a debit note, a supplier payment — inside the same transaction that writes the
+document. Posting is idempotent and `postMissing()` catches up at startup, so
+the books are derived and can always be rebuilt from the documents. A voucher is
+never edited; a correction is a reversing voucher.
 
 Two things block a release, both needing hardware this machine does not have:
 the Windows installer has never been built or installed, and printing is

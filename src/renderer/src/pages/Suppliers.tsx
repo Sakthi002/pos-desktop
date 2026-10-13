@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, Truck, Pencil, Wallet, UserX, UserCheck } from 'lucide-react';
+import { Plus, Search, Truck, Pencil, Wallet, UserX, UserCheck, BookOpen } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { SupplierForm } from '../components/SupplierForm';
 import { PaySupplierDialog } from '../components/PaySupplierDialog';
+import { PartyLedgerDialog } from '../components/PartyLedgerDialog';
 import { formatPaise } from '@shared/money';
 import type { Supplier, SupplierQuery, SupplierSummary } from '@shared/purchasing';
 
@@ -34,6 +35,7 @@ export function Suppliers() {
 
   const [editing, setEditing] = useState<Supplier | null | 'new'>(null);
   const [paying, setPaying] = useState<SupplierSummary | null>(null);
+  const [ledgerFor, setLedgerFor] = useState<SupplierSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -185,6 +187,13 @@ export function Suppliers() {
                       >
                         <Wallet size={15} />
                       </button>
+                      <button
+                        className="icon-btn view"
+                        title="Account"
+                        onClick={() => setLedgerFor(s)}
+                      >
+                        <BookOpen size={15} />
+                      </button>
                       <button className="icon-btn view" title="Edit" onClick={() => setEditing(s)}>
                         <Pencil size={15} />
                       </button>
@@ -234,6 +243,15 @@ export function Suppliers() {
             setEditing(null);
             void load();
           }}
+        />
+      )}
+
+      {ledgerFor && (
+        <PartyLedgerDialog
+          partyType="supplier"
+          partyId={ledgerFor.id}
+          name={ledgerFor.name}
+          onClose={() => setLedgerFor(null)}
         />
       )}
 

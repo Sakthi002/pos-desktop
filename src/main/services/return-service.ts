@@ -30,6 +30,7 @@ import { ReturnsRepository, type SaleLineLedger } from '../db/repositories/retur
 import { CatalogueRepository } from '../db/repositories/catalogue';
 import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
+import { LedgerService } from './ledger-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class ReturnError extends Error {
@@ -48,6 +49,7 @@ export class ReturnService {
   private readonly repo: ReturnsRepository;
   private readonly catalogue: CatalogueRepository;
   private readonly audit: AuditRepository;
+  private readonly ledger: LedgerService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -62,6 +64,7 @@ export class ReturnService {
     this.repo = new ReturnsRepository(db, ctx.companyId);
     this.catalogue = new CatalogueRepository(db, ctx.companyId);
     this.audit = new AuditRepository(db);
+    this.ledger = new LedgerService(db);
   }
 
   /** The invoice as a return screen needs it: what is left on each line. */
@@ -277,6 +280,8 @@ export class ReturnService {
         amountPaise: rounded,
         at,
       });
+
+      this.ledger.postSaleReturn(returnId);
 
       this.audit.record(
         {

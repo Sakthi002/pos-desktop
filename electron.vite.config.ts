@@ -10,10 +10,7 @@ import type { RollupLog } from 'rollup';
  * fix here and nothing to learn from seeing it again. Only that one warning,
  * only from zod — anything else still has to be read.
  */
-const quietZodAnnotations = (
-  warning: RollupLog,
-  handler: (warning: RollupLog) => void,
-): void => {
+const quietZodAnnotations = (warning: RollupLog, handler: (warning: RollupLog) => void): void => {
   if (warning.code === 'INVALID_ANNOTATION' && warning.id?.includes('node_modules/zod')) return;
   handler(warning);
 };
