@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Printer, Ban, Ghost, Undo2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { call } from '../lib/ipc';
+import { useCanWithApproval } from '../lib/session';
 import { formatPaise } from '@shared/money';
 import { formatQuantity, precisionFor } from '@shared/quantity';
 import type { SaleReceipt } from '@shared/sale';
@@ -31,6 +32,7 @@ export function SaleDetail({
   onVoid: (receipt: SaleReceipt) => void;
   onReturn: (saleId: string) => void;
 }) {
+  const allowed = useCanWithApproval();
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
   const [returnable, setReturnable] = useState<ReturnableSale | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,12 +74,12 @@ export function SaleDetail({
           <button className="btn-secondary" onClick={onClose}>
             Close
           </button>
-          {receipt && !voided && returnable?.canReturn && (
+          {receipt && !voided && returnable?.canReturn && allowed('return.create') && (
             <button className="btn-secondary" onClick={() => onReturn(receipt.id)}>
               <Undo2 size={15} /> Return items
             </button>
           )}
-          {receipt && !voided && !hasReturns && (
+          {receipt && !voided && !hasReturns && allowed('sale.void') && (
             <button className="btn-danger" onClick={() => onVoid(receipt)}>
               <Ban size={15} /> Void
             </button>

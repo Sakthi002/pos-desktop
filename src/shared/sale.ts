@@ -2,6 +2,7 @@
  * Sale domain: what the POS submits at checkout, and what comes back.
  */
 import { z } from 'zod';
+import { approvalSchema } from './auth';
 import type { Bill } from './billing';
 
 export const PAYMENT_METHODS = ['cash', 'upi', 'card', 'bank', 'other'] as const;
@@ -138,6 +139,8 @@ export interface SalePage {
 export const voidSaleSchema = z.object({
   id: z.string().uuid(),
   reason: z.string().trim().min(3, 'Give a reason for the void').max(200),
+  /** A manager's credentials, when the shop asks for approval above a value. */
+  approval: approvalSchema.optional(),
 });
 
 export type VoidSaleInput = z.infer<typeof voidSaleSchema>;

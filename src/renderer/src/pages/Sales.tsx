@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Search, Receipt, Printer, Ban, Eye, CheckCircle2, X } from 'lucide-react';
 import { call } from '../lib/ipc';
+import { useCanWithApproval } from '../lib/session';
 import { SaleDetail } from '../components/SaleDetail';
 import { ReturnDialog } from '../components/ReturnDialog';
 import { VoidSaleDialog } from '../components/VoidSaleDialog';
@@ -57,6 +58,7 @@ const formatDateTime = (iso: string): string => {
 };
 
 export function Sales({ settings }: { settings: AppSettings }) {
+  const allowed = useCanWithApproval();
   const [items, setItems] = useState<SaleSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
@@ -322,14 +324,16 @@ export function Sales({ settings }: { settings: AppSettings }) {
                       >
                         <Printer size={15} />
                       </button>
-                      <button
-                        className="icon-btn danger"
-                        title={sale.status === 'voided' ? 'Already voided' : 'Void sale'}
-                        disabled={sale.status === 'voided'}
-                        onClick={() => setVoiding(sale)}
-                      >
-                        <Ban size={15} />
-                      </button>
+                      {allowed('sale.void') && (
+                        <button
+                          className="icon-btn danger"
+                          title={sale.status === 'voided' ? 'Already voided' : 'Void sale'}
+                          disabled={sale.status === 'voided'}
+                          onClick={() => setVoiding(sale)}
+                        >
+                          <Ban size={15} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

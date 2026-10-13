@@ -4,6 +4,7 @@ import { Field } from '../components/Field';
 import { BackupPanel } from '../components/BackupPanel';
 import { AuditPanel } from '../components/AuditPanel';
 import { BooksPanel } from '../components/BooksPanel';
+import { UsersPanel } from '../components/UsersPanel';
 import { call } from '../lib/ipc';
 import {
   BUSINESS_CATEGORIES,
@@ -15,7 +16,7 @@ import { INDIAN_STATES } from '@shared/states';
 import type { PrinterInfo } from '@shared/ipc-contract';
 
 type PaymentMethod = AppSettings['payment']['methods'][number];
-type Tab = 'shop' | 'invoice' | 'receipt' | 'inventory' | 'books' | 'backup' | 'audit';
+type Tab = 'shop' | 'invoice' | 'receipt' | 'inventory' | 'books' | 'users' | 'backup' | 'audit';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'shop', label: 'Shop profile' },
@@ -23,12 +24,13 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'receipt', label: 'Receipt & payments' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'books', label: 'Accounts' },
+  { id: 'users', label: 'Users' },
   { id: 'backup', label: 'Backup & restore' },
   { id: 'audit', label: 'Audit trail' },
 ];
 
 /** Tabs that act on their own and have nothing for the page's Save button. */
-const SELF_SAVING: Tab[] = ['books', 'backup', 'audit'];
+const SELF_SAVING: Tab[] = ['books', 'users', 'backup', 'audit'];
 
 /**
  * Edits the settings created during setup.
@@ -43,7 +45,7 @@ export function Settings({
   settings: AppSettings;
   onSaved: (next: AppSettings) => void;
 }) {
-  const [tab, setTab] = useState<Tab>('books');
+  const [tab, setTab] = useState<Tab>('shop');
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -432,6 +434,8 @@ export function Settings({
         )}
 
         {tab === 'books' && <BooksPanel />}
+
+        {tab === 'users' && <UsersPanel settings={settings} onSaved={onSaved} />}
 
         {tab === 'audit' && <AuditPanel />}
 

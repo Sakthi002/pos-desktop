@@ -117,6 +117,19 @@ export const backupSchema = z.object({
     .transform((v) => v ?? null),
 });
 
+export const securitySchema = z.object({
+  /**
+   * Off until the shop sets an owner password. With it off there is one
+   * unnamed operator and no login, which is how a single-handed shop wants it.
+   */
+  requireLogin: z.boolean().default(false),
+  /** Minutes of no use before the till locks itself. 0 turns the timer off. */
+  idleLockMinutes: z.number().int().min(0).max(240).default(10),
+  /** A void or a return above this value needs a manager to approve it. */
+  approvalRequired: z.boolean().default(false),
+  approvalAbovePaise: z.number().int().min(0).default(100000),
+});
+
 export const appSettingsSchema = z.object({
   shop: shopSchema,
   locale: localeSchema,
@@ -126,6 +139,7 @@ export const appSettingsSchema = z.object({
   payment: paymentSchema,
   inventory: inventorySchema,
   backup: backupSchema,
+  security: securitySchema,
 });
 
 export type ShopSettings = z.infer<typeof shopSchema>;
@@ -142,6 +156,7 @@ export const settingsPatchSchema = z.object({
   payment: paymentSchema.partial().optional(),
   inventory: inventorySchema.partial().optional(),
   backup: backupSchema.partial().optional(),
+  security: securitySchema.partial().optional(),
 });
 
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;
@@ -157,6 +172,7 @@ export function defaultSettings(shopName: string): AppSettings {
     payment: {},
     inventory: {},
     backup: {},
+    security: {},
   });
 }
 

@@ -40,6 +40,16 @@ import {
 import { reportQuerySchema, type ReportTable } from './reports';
 import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
 import {
+  changePasswordSchema,
+  createUserSchema,
+  loginSchema,
+  resetPasswordSchema,
+  setUserActiveSchema,
+  updateUserSchema,
+  type SessionState,
+  type UserSummary,
+} from './auth';
+import {
   accountInputSchema,
   journalSchema,
   ledgerQuerySchema,
@@ -158,6 +168,18 @@ export const ipcContract = {
   'purchases:createReturn': purchaseReturnInputSchema,
   'purchases:getReturn': z.object({ id: z.string().uuid() }),
   'purchases:payment': supplierPaymentSchema,
+
+  'auth:session': z.void(),
+  'auth:login': loginSchema,
+  'auth:logout': z.void(),
+  'auth:lock': z.void(),
+  'auth:changePassword': changePasswordSchema,
+
+  'users:list': z.void(),
+  'users:create': createUserSchema,
+  'users:update': updateUserSchema,
+  'users:setActive': setUserActiveSchema,
+  'users:resetPassword': resetPasswordSchema,
 
   'ledger:accounts': z.void(),
   'ledger:trialBalance': z.object({
@@ -355,6 +377,18 @@ export interface IpcResponseMap {
   'purchases:createReturn': PurchaseReturnReceipt;
   'purchases:getReturn': PurchaseReturnReceipt;
   'purchases:payment': { id: string; outstandingPaise: number };
+  'auth:session': SessionState;
+  'auth:login': SessionState;
+  'auth:logout': SessionState;
+  'auth:lock': SessionState;
+  'auth:changePassword': SessionState;
+
+  'users:list': UserSummary[];
+  'users:create': UserSummary;
+  'users:update': UserSummary;
+  'users:setActive': UserSummary;
+  'users:resetPassword': UserSummary;
+
   'ledger:accounts': Account[];
   'ledger:trialBalance': AccountBalance[];
   'ledger:statement': LedgerStatement;

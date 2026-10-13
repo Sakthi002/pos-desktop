@@ -142,6 +142,45 @@ body {
   font-size: 14px;
 }
 
+/* The sign-in and lock screens: narrower than a settings panel, and the title
+   carries its icon inline. */
+.login-panel {
+  width: min(420px, 100%);
+}
+
+.login-panel h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-panel .sub {
+  margin-bottom: 20px;
+}
+
+.login-panel form {
+  margin-top: 4px;
+}
+
+.btn-primary.wide {
+  width: 100%;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+/* The manager's sign-off, shown inside the dialog that asked for it. */
+.approval-block {
+  padding: 12px 14px 2px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+
+.approval-block .warn-note {
+  margin-top: 0;
+}
+
 dl.facts {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -310,6 +349,24 @@ select {
   width: 19px;
   height: 19px;
   flex: none;
+}
+
+/* A checkbox that needs a sentence of explanation puts it under the label. */
+.check span em {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-style: normal;
+}
+
+.check:has(em) {
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.check:has(em) input {
+  margin-top: 2px;
 }
 
 .chips {
@@ -616,6 +673,44 @@ kbd {
   font-size: 10.5px;
   font-weight: 700;
   color: var(--faint);
+}
+
+/* Who is at the till, just above the footer: name, role, and the two ways to
+   leave it — lock, which keeps the name, and sign out, which does not. */
+.who {
+  margin-top: auto;
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: var(--bg);
+}
+
+.who-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.who-name strong {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who-name span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* With a user block above it the footer no longer pushes itself down. */
+.who + .sidebar-foot {
+  margin-top: 0;
 }
 
 .sidebar-foot {

@@ -3,6 +3,8 @@ import { Undo2, AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 import { Field } from './Field';
 import { call } from '../lib/ipc';
+import { ApprovalFields } from './ApprovalFields';
+import { EMPTY_APPROVAL, needsApproval, type Approval } from '../lib/approval';
 import { formatPaise } from '@shared/money';
 import { formatQuantity, parseQuantity, precisionFor } from '@shared/quantity';
 import { PAYMENT_METHODS, type PaymentMethod } from '@shared/sale';
@@ -36,6 +38,7 @@ export function ReturnDialog({
   const [refundMethod, setRefundMethod] = useState<PaymentMethod>('cash');
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
+  const [approval, setApproval] = useState<Approval | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,10 +117,17 @@ export function ReturnDialog({
         reason: reason.trim(),
         refundMethod,
         lines,
+        ...(approval?.username ? { approval } : {}),
       });
       onReturned(credit);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // The shop asks for a manager above a value. That is a rule, not an
+      // error: show the fields and keep everything already keyed in.
+      if (needsApproval(err) && approval === null) {
+        setApproval(EMPTY_APPROVAL);
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -153,6 +163,8 @@ export function ReturnDialog({
           {error}
         </p>
       )}
+
+      {approval && <ApprovalFields value={approval} onChange={setApproval} />}
 
       {!sale ? (
         <p className="empty">Loading…</p>

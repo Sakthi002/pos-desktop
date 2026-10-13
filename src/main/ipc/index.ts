@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron';
-import { registerHandler, IpcError } from './registry';
+import { registerHandler, setIpcGate, IpcError } from './registry';
 import {
   getDbStatus,
   getDatabase,
@@ -26,6 +26,10 @@ import { PurchaseService, PurchaseError } from '../services/purchase-service';
 import { LedgerService, LedgerError } from '../services/ledger-service';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
+import { AuthService, AuthError } from '../services/auth-service';
+import { UserRepository } from '../db/repositories/users';
+import { CHANNEL_PERMISSIONS, PUBLIC_CHANNELS } from '@shared/permissions';
+import { touch } from '../session';
 
 export function registerIpcHandlers(): void {
   registerHandler('app:getInfo', () => ({
@@ -64,6 +68,16 @@ export function registerIpcHandlers(): void {
     const service = new SettingsService(getDatabase());
     if (!service.isSetupComplete()) {
       throw new IpcError('SETUP_INCOMPLETE', 'Complete setup before changing settings.');
+    }
+    // Turning login on without an owner who can sign in would lock the shop
+    // out of its own till, with no way back that does not involve us.
+    if (patch.security?.requireLogin === true) {
+      if (new UserRepository(getDatabase()).activeAdminsWithPassword() === 0) {
+        throw new IpcError(
+          'NO_ADMIN_PASSWORD',
+          'Give an owner account a password before turning login on.',
+        );
+      }
     }
     return service.update(patch);
   });
@@ -179,6 +193,55 @@ export function registerIpcHandlers(): void {
     buying(({ purchases }) => purchases.recordPayment(input)),
   );
 
+  const auth = <T>(work: (service: AuthService) => T): T => {
+    try {
+      return work(new AuthService(getDatabase()));
+    } catch (err) {
+      if (err instanceof AuthError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  // Every channel passes this before its handler runs. A channel the shop can
+  // use before signing in is listed as public; everything else needs a session
+  // once login is on, and a role that allows the act if the channel names one.
+  setIpcGate((channel) => {
+    if (PUBLIC_CHANNELS.has(channel)) return;
+    auth((service) => service.check(CHANNEL_PERMISSIONS[channel] ?? null));
+    // Real work keeps the session alive; asking whether it is alive does not.
+    touch();
+  });
+
+  /**
+   * A cashier may undo a small mistake on their own; past the shop's threshold
+   * somebody with the authority has to put their password behind it. Checked
+   * here, where the value is known and the renderer cannot talk its way around
+   * it — the generic channel gate cannot, because it never sees the payload.
+   */
+  const requireApproval = (
+    permission: 'sale.void' | 'return.create',
+    valuePaise: number,
+    approval: unknown,
+  ): void => {
+    auth((service) => service.authorise(permission, valuePaise, approval));
+  };
+
+  registerHandler('auth:session', () => auth((service) => service.state()));
+  registerHandler('auth:login', (input) => auth((service) => service.login(input)));
+  registerHandler('auth:logout', () => auth((service) => service.logout()));
+  registerHandler('auth:lock', () => auth((service) => service.lock()));
+  registerHandler('auth:changePassword', (input) =>
+    auth((service) => service.changePassword(input)),
+  );
+
+  registerHandler('users:list', () => auth((service) => service.list()));
+  registerHandler('users:create', (input) => auth((service) => service.create(input)));
+  registerHandler('users:update', (input) => auth((service) => service.update(input)));
+  registerHandler('users:setActive', (input) => auth((service) => service.setActive(input)));
+  registerHandler('users:resetPassword', (input) =>
+    auth((service) => service.resetPassword(input)),
+  );
+
   const books = <T>(work: (ledger: LedgerService) => T): T => {
     try {
       return work(new LedgerService(getDatabase()));
@@ -237,6 +300,11 @@ export function registerIpcHandlers(): void {
   registerHandler('sales:search', (query) => saleService().listSales(query));
   registerHandler('sales:void', (input) => {
     try {
+      // The value at stake decides whether a manager has to stand over this,
+      // and it is read from the stored invoice, not from anything the renderer
+      // sent — otherwise the threshold would be the renderer's to choose.
+      const sale = saleService().getReceipt(input.id);
+      requireApproval('sale.void', sale.bill.totalPaise, input.approval);
       return saleService().voidSale(input);
     } catch (err) {
       if (err instanceof SaleError) throw new IpcError(err.code, err.message);
@@ -266,7 +334,19 @@ export function registerIpcHandlers(): void {
   registerHandler('returns:getSale', ({ saleId }) =>
     asIpcError(() => returns().getReturnableSale(saleId)),
   );
-  registerHandler('returns:create', (input) => asIpcError(() => returns().createReturn(input)));
+  registerHandler('returns:create', (input) =>
+    asIpcError(() => {
+      // What is being credited, priced from the stored invoice lines.
+      const sale = returns().getReturnableSale(input.saleId);
+      const value = input.lines.reduce((total, line) => {
+        const original = sale.lines.find((l) => l.saleItemId === line.saleItemId);
+        if (!original || original.soldMilli === 0) return total;
+        return total + Math.round((original.totalPaise * line.quantityMilli) / original.soldMilli);
+      }, 0);
+      requireApproval('return.create', value, input.approval);
+      return returns().createReturn(input);
+    }),
+  );
   registerHandler('returns:get', ({ id }) => asIpcError(() => returns().getReturn(id)));
 
   registerHandler('inventory:movements', (query) =>

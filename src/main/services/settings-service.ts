@@ -16,16 +16,10 @@ import {
 import { SettingsRepository } from '../db/repositories/settings';
 import { AuditRepository } from '../db/repositories/audit';
 
-const SECTIONS = [
-  'shop',
-  'locale',
-  'invoice',
-  'tax',
-  'receipt',
-  'payment',
-  'inventory',
-  'backup',
-] as const;
+// Taken from the schema rather than written out again: a section added to the
+// schema and forgotten here would be stored but never read back, and the
+// settings would then fail to load against their own shape.
+const SECTIONS = Object.keys(appSettingsSchema.shape) as SettingsSection[];
 
 export class SettingsService {
   private readonly repo: SettingsRepository;

@@ -7,6 +7,7 @@
  * heads the invoice charged.
  */
 import { z } from 'zod';
+import { approvalSchema } from './auth';
 import { PAYMENT_METHODS, type PaymentMethod } from './sale';
 
 export const returnLineInputSchema = z.object({
@@ -23,6 +24,8 @@ export const returnInputSchema = z.object({
   reason: z.string().trim().min(3, 'Give a reason for the return').max(200),
   refundMethod: z.enum(PAYMENT_METHODS),
   lines: z.array(returnLineInputSchema).min(1, 'Choose at least one item to return'),
+  /** A manager's credentials, when the shop asks for approval above a value. */
+  approval: approvalSchema.optional(),
 });
 
 export type ReturnLineInput = z.infer<typeof returnLineInputSchema>;

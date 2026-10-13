@@ -12,10 +12,14 @@ import {
   FolderTree,
   Settings as SettingsIcon,
   HardDrive,
+  Lock,
+  LogOut,
 } from 'lucide-react';
 import { call } from '../lib/ipc';
 import type { AppSettings } from '@shared/settings';
 import type { DbStatus } from '@shared/ipc-contract';
+import type { Session, SessionState } from '@shared/auth';
+import { ROLE_LABELS, type Permission } from '@shared/permissions';
 
 export type Route =
   | 'dashboard'
@@ -30,18 +34,18 @@ export type Route =
   | 'reports'
   | 'settings';
 
-const NAV: { id: Route; label: string; icon: typeof Package; ready: boolean }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, ready: true },
-  { id: 'pos', label: 'New Sale', icon: ShoppingCart, ready: true },
-  { id: 'sales', label: 'Sales', icon: Receipt, ready: true },
-  { id: 'products', label: 'Products', icon: Package, ready: true },
-  { id: 'categories', label: 'Categories', icon: FolderTree, ready: true },
-  { id: 'inventory', label: 'Inventory', icon: Boxes, ready: true },
-  { id: 'purchases', label: 'Purchases', icon: PackagePlus, ready: true },
-  { id: 'suppliers', label: 'Suppliers', icon: Truck, ready: true },
-  { id: 'customers', label: 'Customers', icon: Users, ready: true },
-  { id: 'reports', label: 'Reports', icon: BarChart3, ready: true },
-  { id: 'settings', label: 'Settings', icon: SettingsIcon, ready: true },
+const NAV: { id: Route; label: string; icon: typeof Package; needs: Permission }[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, needs: 'report.view' },
+  { id: 'pos', label: 'New Sale', icon: ShoppingCart, needs: 'sell' },
+  { id: 'sales', label: 'Sales', icon: Receipt, needs: 'sale.view' },
+  { id: 'products', label: 'Products', icon: Package, needs: 'product.manage' },
+  { id: 'categories', label: 'Categories', icon: FolderTree, needs: 'product.manage' },
+  { id: 'inventory', label: 'Inventory', icon: Boxes, needs: 'report.view' },
+  { id: 'purchases', label: 'Purchases', icon: PackagePlus, needs: 'purchase.manage' },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck, needs: 'purchase.manage' },
+  { id: 'customers', label: 'Customers', icon: Users, needs: 'customer.manage' },
+  { id: 'reports', label: 'Reports', icon: BarChart3, needs: 'report.view' },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon, needs: 'settings.manage' },
 ];
 
 const initialsOf = (name: string): string =>
@@ -58,6 +62,9 @@ export function AppShell({
   settings,
   db,
   version,
+  session,
+  onSignedOut,
+  allowed,
   children,
 }: {
   route: Route;
@@ -65,6 +72,9 @@ export function AppShell({
   settings: AppSettings;
   db: DbStatus | null;
   version: string;
+  session: Session | null;
+  onSignedOut: (next: SessionState) => void;
+  allowed: (permission: Permission) => boolean;
   children: ReactNode;
 }) {
   const [logo, setLogo] = useState<string | null>(null);
@@ -95,23 +105,43 @@ export function AppShell({
         </div>
 
         <nav>
-          {NAV.map((item) => {
+          {NAV.filter((item) => allowed(item.needs)).map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 className={route === item.id ? 'nav-item on' : 'nav-item'}
                 onClick={() => onNavigate(item.id)}
-                disabled={!item.ready}
-                title={item.ready ? undefined : 'Arrives in a later phase'}
               >
                 <Icon size={17} />
                 <span>{item.label}</span>
-                {!item.ready && <em>soon</em>}
               </button>
             );
           })}
         </nav>
+
+        {session && (
+          <div className="who">
+            <span className="who-name">
+              <strong>{session.name}</strong>
+              <span>{ROLE_LABELS[session.role]}</span>
+            </span>
+            <button
+              className="icon-btn"
+              title="Lock the till"
+              onClick={() => void call('auth:lock').then(onSignedOut)}
+            >
+              <Lock size={15} />
+            </button>
+            <button
+              className="icon-btn danger"
+              title="Sign out"
+              onClick={() => void call('auth:logout').then(onSignedOut)}
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
+        )}
 
         <footer className="sidebar-foot">
           <span className="badge ok">

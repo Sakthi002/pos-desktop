@@ -1,11 +1,16 @@
 /**
  * Who is billing, and from where.
  *
- * v1 is one shop on one computer, so there is exactly one company, one branch
- * and one operator. Every service that writes a document needs the same three
- * ids, and reading them in one place keeps them from drifting apart.
+ * One shop on one computer: exactly one company and one branch. Every service
+ * that writes a document needs the same ids, and reading them in one place
+ * keeps them from drifting apart.
+ *
+ * The operator is whoever is signed in. With login off nobody is, and the
+ * shop's single seeded operator stands in — which is what a one-person shop
+ * wants, and what every document written before login existed already says.
  */
 import type { Database } from 'better-sqlite3';
+import { sessionOperatorId } from '../session';
 
 export interface BranchContext {
   companyId: string;
@@ -38,6 +43,6 @@ export function loadBranchContext(db: Database): BranchContext | null {
     companyId: row.company_id,
     branchId: row.branch_id,
     branchStateCode: row.branch_state_code,
-    operatorId: row.operator_id,
+    operatorId: sessionOperatorId() ?? row.operator_id,
   };
 }

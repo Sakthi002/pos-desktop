@@ -15,6 +15,20 @@ import {
 } from '@shared/ipc-contract';
 import { validatePayload } from './validate';
 
+/**
+ * The gate every channel passes through once its payload is valid: who is
+ * signed in, and whether their role allows this. It is installed rather than
+ * imported so the registry stays free of services, and so a test can register
+ * handlers with no gate at all.
+ */
+type Gate = (channel: IpcChannel) => void;
+
+let gate: Gate | null = null;
+
+export function setIpcGate(next: Gate | null): void {
+  gate = next;
+}
+
 export type Handler<C extends IpcChannel> = (
   payload: IpcRequest<C>,
 ) => Promise<IpcResponse<C>> | IpcResponse<C>;
@@ -35,6 +49,7 @@ export function registerHandler<C extends IpcChannel>(channel: C, handler: Handl
     if (!parsed.ok) return parsed;
 
     try {
+      gate?.(channel);
       const data = await handler(parsed.data);
       return { ok: true, data };
     } catch (err) {

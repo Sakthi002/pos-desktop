@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { call } from './lib/ipc';
 import { SetupWizard } from './pages/SetupWizard';
+import { Login, ForcedPasswordChange } from './pages/Login';
 import { Placeholder } from './pages/Placeholder';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
@@ -17,8 +18,26 @@ import { Reports } from './pages/Reports';
 import { AppShell, type Route } from './components/AppShell';
 import type { AppInfo, DbStatus } from '@shared/ipc-contract';
 import type { AppSettings } from '@shared/settings';
+import type { SessionState } from '@shared/auth';
+import { can, type Permission } from '@shared/permissions';
+import { SessionContext } from './lib/session';
 
 type Phase = 'loading' | 'setup' | 'ready' | 'error';
+
+/** What a screen needs before it is worth showing; the IPC enforces the rest. */
+const ROUTE_PERMISSION: Partial<Record<Route, Permission>> = {
+  dashboard: 'report.view',
+  pos: 'sell',
+  sales: 'sale.view',
+  products: 'product.manage',
+  categories: 'product.manage',
+  inventory: 'report.view',
+  purchases: 'purchase.manage',
+  suppliers: 'purchase.manage',
+  customers: 'customer.manage',
+  reports: 'report.view',
+  settings: 'settings.manage',
+};
 
 const ROUTES: Route[] = [
   'dashboard',
@@ -50,6 +69,7 @@ export function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [route, setRoute] = useState<Route>(routeFromHash);
+  const [auth, setAuth] = useState<SessionState | null>(null);
 
   const navigate = useCallback((next: Route) => {
     setRoute(next);
@@ -59,12 +79,14 @@ export function App() {
   const load = useCallback(async (signal?: { cancelled: boolean }) => {
     const live = () => !signal?.cancelled;
     try {
-      const [appInfo, dbStatus, setupState] = await Promise.all([
+      const [appInfo, dbStatus, setupState, session] = await Promise.all([
         call('app:getInfo'),
         call('app:getDbStatus'),
         call('setup:getState'),
+        call('auth:session'),
       ]);
       if (!live()) return;
+      setAuth(session);
       setInfo(appInfo);
       setDb(dbStatus);
 
@@ -84,6 +106,19 @@ export function App() {
       setPhase('error');
     }
   }, []);
+
+  // The till locks itself after a spell of no use, and the lock happens in the
+  // main process. Asking every half minute is what turns that into a screen
+  // the cashier actually sees, rather than an error on their next keystroke.
+  useEffect(() => {
+    if (!auth?.loginRequired || !auth.session) return;
+    const timer = setInterval(() => {
+      void call('auth:session')
+        .then((next) => setAuth(next))
+        .catch(() => undefined);
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, [auth?.loginRequired, auth?.session]);
 
   useEffect(() => {
     // Initial load from the main process. State is only set after the IPC
@@ -127,29 +162,52 @@ export function App() {
     return <SetupWizard onComplete={() => void load()} />;
   }
 
+  // Nobody gets past here while the shop asks for a login. The main process
+  // refuses the channels as well: this is the door, not the lock.
+  if (auth?.loginRequired && !auth.session) {
+    return <Login state={auth} settings={settings} onSignedIn={setAuth} />;
+  }
+
+  if (auth?.session?.mustChangePassword) {
+    return <ForcedPasswordChange onDone={setAuth} />;
+  }
+
   if (!settings) {
     return <Placeholder info={info} db={db} settings={null} />;
   }
 
+  const allowed = (permission: Permission): boolean =>
+    !auth?.loginRequired || !auth.session || can(auth.session.role, permission);
+
+  // A role that cannot open the screen it was last on sees the till instead,
+  // which is the one screen every role that can sign in is allowed to use.
+  const needed = ROUTE_PERMISSION[route];
+  const view: Route = needed && !allowed(needed) ? 'pos' : route;
+
   return (
-    <AppShell
-      route={route}
-      onNavigate={navigate}
-      settings={settings}
-      db={db}
-      version={info?.version ?? '0.0.0'}
-    >
-      {route === 'pos' && <Pos settings={settings} />}
-      {route === 'sales' && <Sales settings={settings} />}
-      {route === 'products' && <Products settings={settings} />}
-      {route === 'categories' && <Categories />}
-      {route === 'inventory' && <Inventory />}
-      {route === 'purchases' && <Purchases />}
-      {route === 'suppliers' && <Suppliers />}
-      {route === 'customers' && <Customers />}
-      {route === 'reports' && <Reports />}
-      {route === 'settings' && <Settings settings={settings} onSaved={setSettings} />}
-      {route === 'dashboard' && <Dashboard onNavigate={navigate} />}
-    </AppShell>
+    <SessionContext.Provider value={auth}>
+      <AppShell
+        route={view}
+        onNavigate={navigate}
+        settings={settings}
+        db={db}
+        version={info?.version ?? '0.0.0'}
+        session={auth?.session ?? null}
+        onSignedOut={setAuth}
+        allowed={allowed}
+      >
+        {view === 'pos' && <Pos settings={settings} />}
+        {view === 'sales' && <Sales settings={settings} />}
+        {view === 'products' && <Products settings={settings} />}
+        {view === 'categories' && <Categories />}
+        {view === 'inventory' && <Inventory />}
+        {view === 'purchases' && <Purchases />}
+        {view === 'suppliers' && <Suppliers />}
+        {view === 'customers' && <Customers />}
+        {view === 'reports' && <Reports />}
+        {view === 'settings' && <Settings settings={settings} onSaved={setSettings} />}
+        {view === 'dashboard' && <Dashboard onNavigate={navigate} />}
+      </AppShell>
+    </SessionContext.Provider>
   );
 }
