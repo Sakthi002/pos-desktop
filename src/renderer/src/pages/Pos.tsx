@@ -493,17 +493,21 @@ export function Pos({ settings }: { settings: AppSettings }) {
                 {grid.map((p) => {
                   const tint = tintFor(p.id);
                   const precision = precisionFor(p.unitCode);
+                  const out = p.trackInventory && p.stockMilli <= 0;
                   const low =
                     p.trackInventory &&
+                    !out &&
                     p.reorderLevelMilli > 0 &&
                     p.stockMilli <= p.reorderLevelMilli;
                   return (
                     <button key={p.id} className="tile" onClick={() => addProduct(p)}>
                       <span className="tile-art" style={{ background: tint.bg, color: tint.ink }}>
                         {initialsOf(p.name)}
-                        {low && (
-                          <span className="tile-low">
-                            {formatQuantity(p.stockMilli, precision)} left
+                        {p.trackInventory && (
+                          <span className={`tile-stock${out ? ' out' : low ? ' low' : ''}`}>
+                            {out
+                              ? 'None left'
+                              : `${formatQuantity(p.stockMilli, precision)} ${p.unitCode}`}
                           </span>
                         )}
                       </span>
