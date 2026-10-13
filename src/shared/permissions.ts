@@ -87,6 +87,12 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'products:csvTemplate': 'product.manage',
   'products:adjustStock': 'inventory.adjust',
 
+  'loyalty:cards': 'customer.manage',
+  'loyalty:issue': 'customer.manage',
+  'loyalty:update': 'customer.manage',
+  // A correction by hand moves what the shop owes, so it sits with the books.
+  'loyalty:adjust': 'books.post',
+
   'customers:create': 'customer.manage',
   'customers:update': 'customer.manage',
   'customers:setActive': 'customer.manage',

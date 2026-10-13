@@ -203,7 +203,7 @@ export function App() {
         {view === 'inventory' && <Inventory />}
         {view === 'purchases' && <Purchases />}
         {view === 'suppliers' && <Suppliers />}
-        {view === 'customers' && <Customers />}
+        {view === 'customers' && <Customers settings={settings} />}
         {view === 'reports' && <Reports />}
         {view === 'settings' && <Settings settings={settings} onSaved={setSettings} />}
         {view === 'dashboard' && <Dashboard onNavigate={navigate} />}

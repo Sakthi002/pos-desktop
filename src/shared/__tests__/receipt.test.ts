@@ -79,6 +79,7 @@ const makeReceipt = (interstate = false): SaleReceipt => {
     voidedAt: null,
     voidReason: null,
     duplicate: false,
+    loyalty: null,
   };
 };
 
@@ -251,6 +252,53 @@ describe('receipt rendering', () => {
     });
     expect(html).toContain('1006');
     expect(html).toContain('HSN');
+  });
+});
+
+describe('points on the receipt', () => {
+  const withPoints = () => ({
+    ...makeReceipt(),
+    loyalty: { pointsEarned: 10, pointsRedeemed: 120, discountPaise: 12000, balancePoints: 10 },
+  });
+
+  const runningPoints = () => {
+    const base = settings();
+    return { ...base, loyalty: { ...base.loyalty, enabled: true, showOnReceipt: true } };
+  };
+
+  for (const paperSize of ['58mm', '80mm', 'a4'] as const) {
+    it(`prints what the bill moved on ${paperSize}`, () => {
+      const html = buildReceiptHtml({
+        receipt: withPoints(),
+        settings: runningPoints(),
+        paperSize,
+      });
+
+      expect(html).toContain('120 points used');
+      expect(html).toContain('10 points earned');
+      expect(html).toContain('Balance 10');
+    });
+  }
+
+  it('prints nothing when the shop does not run points', () => {
+    const html = buildReceiptHtml({
+      receipt: withPoints(),
+      settings: settings(),
+      paperSize: '80mm',
+    });
+
+    expect(html).not.toContain('points earned');
+  });
+
+  it('prints nothing when the shop runs points but keeps them off the receipt', () => {
+    const base = runningPoints();
+    const html = buildReceiptHtml({
+      receipt: withPoints(),
+      settings: { ...base, loyalty: { ...base.loyalty, showOnReceipt: false } },
+      paperSize: '80mm',
+    });
+
+    expect(html).not.toContain('points earned');
   });
 });
 

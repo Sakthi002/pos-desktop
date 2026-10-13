@@ -217,6 +217,7 @@ function renderThermal(input: ReceiptRenderInput): string {
     ${payments}
     ${receipt.changePaise > 0 ? `<tr><td>Change</td><td class="r b">${formatPaise(receipt.changePaise, false)}</td></tr>` : ''}
   </table>
+  ${loyaltyLines(input) ? `<div class="rule"></div><div class="c">${esc(loyaltyLines(input))}</div>` : ''}
   ${settings.receipt.footerText ? `<div class="c foot">${esc(settings.receipt.footerText)}</div>` : ''}
   <div class="c foot">Thank you</div>
 </body></html>`;
@@ -324,6 +325,7 @@ function renderA4(input: ReceiptRenderInput): string {
         <tbody>
           ${payments}
           ${receipt.changePaise > 0 ? `<tr><td>Change given</td><td class="num">${formatPaise(receipt.changePaise, false)}</td></tr>` : ''}
+          ${loyaltyLines(input) ? `<tr><td colspan="2">${esc(loyaltyLines(input))}</td></tr>` : ''}
         </tbody>
       </table>
     </div>
@@ -352,6 +354,23 @@ function renderA4(input: ReceiptRenderInput): string {
     This is a computer-generated document.
   </div>
 </body></html>`;
+}
+
+/**
+ * The points line, when the shop runs them and this bill moved any. Printed
+ * from what was stored with the sale, so a reprint shows what the customer was
+ * actually told at the counter.
+ */
+function loyaltyLines(input: ReceiptRenderInput): string {
+  const { receipt, settings } = input;
+  const loyalty = receipt.loyalty;
+  if (!loyalty || !settings.loyalty.enabled || !settings.loyalty.showOnReceipt) return '';
+
+  const parts: string[] = [];
+  if (loyalty.pointsRedeemed > 0) parts.push(`${loyalty.pointsRedeemed} points used`);
+  if (loyalty.pointsEarned > 0) parts.push(`${loyalty.pointsEarned} points earned`);
+  parts.push(`Balance ${loyalty.balancePoints}`);
+  return parts.join(' · ');
 }
 
 export function buildReceiptHtml(input: ReceiptRenderInput): string {

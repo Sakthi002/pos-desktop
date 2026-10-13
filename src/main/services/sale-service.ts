@@ -25,6 +25,7 @@ import {
   type SalePage,
   type SaleQuery,
   type SaleStatus,
+  type SaleLoyalty,
 } from '@shared/sale';
 import { calculateBill, type Bill, type BillLineInput } from '@shared/billing';
 import { financialYearOf, type AppSettings } from '@shared/settings';
@@ -34,6 +35,7 @@ import { SalesRepository } from '../db/repositories/sales';
 import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
 import { LedgerService } from './ledger-service';
+import { LoyaltyService } from './loyalty-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class SaleError extends Error {
@@ -65,6 +67,7 @@ export class SaleService {
   private readonly history: SalesRepository;
   private readonly audit: AuditRepository;
   private readonly ledger: LedgerService;
+  private readonly loyalty: LoyaltyService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -78,6 +81,7 @@ export class SaleService {
     this.history = new SalesRepository(db, this.ctx.companyId);
     this.audit = new AuditRepository(db);
     this.ledger = new LedgerService(db);
+    this.loyalty = new LoyaltyService(db);
   }
 
   /** Customer's state decides CGST+SGST versus IGST; unknown means local. */
@@ -133,12 +137,32 @@ export class SaleService {
   /** Totals for the screen. Reads nothing it does not need and writes nothing. */
   preview(input: unknown): Bill {
     const parsed = billPreviewSchema.parse(input);
-    return calculateBill({
-      lines: this.buildLines(parsed),
+    const lines = this.buildLines(parsed);
+    const isInterstate = this.isInterstate(parsed.customerId);
+
+    const before = calculateBill({
+      lines,
       cartDiscountPaise: parsed.cartDiscountPaise,
-      isInterstate: this.isInterstate(parsed.customerId),
+      isInterstate,
       roundTotal: this.settings.tax.roundTotalToRupee,
     });
+    if (parsed.redeemPoints <= 0) return before;
+
+    // Points are capped against the bill as it stands before they are spent,
+    // so spending them cannot enlarge what may be spent.
+    const discount = this.loyalty.priceRedemption(
+      parsed.customerId ?? null,
+      before.totalPaise,
+      parsed.redeemPoints,
+    );
+
+    const after = calculateBill({
+      lines,
+      cartDiscountPaise: parsed.cartDiscountPaise + discount,
+      isInterstate,
+      roundTotal: this.settings.tax.roundTotalToRupee,
+    });
+    return { ...after, loyaltyDiscountPaise: discount };
   }
 
   /** Current stock for each tracked product in the cart. */
@@ -206,12 +230,34 @@ export class SaleService {
     if (alreadyCommitted) return { ...this.getReceipt(alreadyCommitted), duplicate: true };
 
     const lines = this.buildLines(parsed);
-    const bill = calculateBill({
+    const isInterstate = this.isInterstate(parsed.customerId);
+
+    // Points are priced against the bill before they are spent, so a bigger
+    // redemption cannot make room for itself.
+    const beforePoints = calculateBill({
       lines,
       cartDiscountPaise: parsed.cartDiscountPaise,
-      isInterstate: this.isInterstate(parsed.customerId),
+      isInterstate,
       roundTotal: this.settings.tax.roundTotalToRupee,
     });
+    const loyaltyDiscount =
+      parsed.redeemPoints > 0
+        ? this.loyalty.priceRedemption(
+            parsed.customerId ?? null,
+            beforePoints.totalPaise,
+            parsed.redeemPoints,
+          )
+        : 0;
+
+    const bill =
+      loyaltyDiscount === 0
+        ? beforePoints
+        : calculateBill({
+            lines,
+            cartDiscountPaise: parsed.cartDiscountPaise + loyaltyDiscount,
+            isInterstate,
+            roundTotal: this.settings.tax.roundTotalToRupee,
+          });
 
     // Payments must cover the bill. Cash may exceed it, and the surplus is change.
     const paid = parsed.payments.reduce((a, p) => a + p.amountPaise, 0);
@@ -276,12 +322,16 @@ export class SaleService {
              invoice_date, customer_id, customer_name, customer_phone, customer_gstin, customer_state_code,
              tax_mode, is_interstate, gross_paise, item_discount_paise, cart_discount_paise,
              taxable_paise, cgst_paise, sgst_paise, igst_paise, tax_paise, round_off_paise,
-             total_paise, status, notes, idempotency_key, created_at, updated_at)
+             total_paise, status, notes, idempotency_key,
+             loyalty_points_earned, loyalty_points_redeemed, loyalty_discount_paise,
+             created_at, updated_at)
            VALUES (@id, @company_id, @branch_id, @operator_id, @invoice_number, @financial_year,
              @invoice_date, @customer_id, @customer_name, @customer_phone, @customer_gstin, @customer_state_code,
              @tax_mode, @is_interstate, @gross_paise, @item_discount_paise, @cart_discount_paise,
              @taxable_paise, @cgst_paise, @sgst_paise, @igst_paise, @tax_paise, @round_off_paise,
-             @total_paise, 'completed', @notes, @idempotency_key, @t, @t)`,
+             @total_paise, 'completed', @notes, @idempotency_key,
+             @loyalty_points_earned, @loyalty_points_redeemed, @loyalty_discount_paise,
+             @t, @t)`,
         )
         .run({
           id: saleId,
@@ -310,6 +360,10 @@ export class SaleService {
           total_paise: bill.totalPaise,
           notes: parsed.notes ?? null,
           idempotency_key: parsed.idempotencyKey,
+          // Filled in below, once the points have actually been written.
+          loyalty_points_earned: 0,
+          loyalty_points_redeemed: parsed.redeemPoints,
+          loyalty_discount_paise: loyaltyDiscount,
           t: timestamp,
         });
 
@@ -395,6 +449,21 @@ export class SaleService {
         );
       }
 
+      // Points move with the sale or not at all, and the books are posted
+      // after them so the voucher can account for what they changed.
+      const { earned } = this.loyalty.recordForSale({
+        saleId,
+        customerId: parsed.customerId ?? null,
+        netPaise: bill.taxablePaise,
+        redeemPoints: parsed.redeemPoints,
+        redeemPaise: loyaltyDiscount,
+      });
+      if (earned > 0) {
+        this.db
+          .prepare('UPDATE sales SET loyalty_points_earned = ? WHERE id = ?')
+          .run(earned, saleId);
+      }
+
       this.ledger.postSale(saleId);
     });
 
@@ -459,6 +528,15 @@ export class SaleService {
           at,
         });
       }
+
+      // The whole sale is undone, so the whole of its points goes with it.
+      this.loyalty.reverseForSale({
+        saleId: sale.id,
+        referenceType: 'sale',
+        referenceId: sale.id,
+        proportion: 1,
+        narration: `Void of ${sale.invoiceNumber}`,
+      });
 
       this.ledger.postSaleVoid(sale.id);
 
@@ -580,6 +658,27 @@ export class SaleService {
       voidedAt: (sale['voided_at'] as string | null) ?? null,
       voidReason: (sale['void_reason'] as string | null) ?? null,
       duplicate: false,
+      loyalty: this.loyaltyOf(sale),
+    };
+  }
+
+  /**
+   * The points this bill moved, as stored on it. Read from the sale rather
+   * than recomputed, so a receipt printed years later still shows what the
+   * customer was actually given, at the rate that applied then.
+   */
+  private loyaltyOf(sale: Record<string, unknown>): SaleLoyalty | null {
+    const earned = (sale['loyalty_points_earned'] as number) ?? 0;
+    const redeemed = (sale['loyalty_points_redeemed'] as number) ?? 0;
+    const customerId = (sale['customer_id'] as string | null) ?? null;
+    if (earned === 0 && redeemed === 0) return null;
+
+    const card = customerId ? this.loyalty.cardFor(customerId) : null;
+    return {
+      pointsEarned: earned,
+      pointsRedeemed: redeemed,
+      discountPaise: (sale['loyalty_discount_paise'] as number) ?? 0,
+      balancePoints: card?.balancePoints ?? 0,
     };
   }
 }

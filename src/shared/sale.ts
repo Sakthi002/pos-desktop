@@ -30,6 +30,8 @@ export const saleInputSchema = z.object({
   customerId: z.string().uuid().nullable().optional(),
   lines: z.array(saleLineInputSchema).min(1, 'Add at least one item'),
   cartDiscountPaise: z.number().int().min(0).default(0),
+  /** Loyalty points the customer is spending on this bill. */
+  redeemPoints: z.number().int().min(0).default(0),
   payments: z.array(paymentInputSchema).min(1, 'Record at least one payment'),
   notes: z.string().trim().max(500).nullable().optional(),
 });
@@ -65,6 +67,17 @@ export interface SaleReceipt {
   voidReason: string | null;
   /** True when an identical submission had already been committed. */
   duplicate: boolean;
+  /** Null when the shop does not run points, or the customer has no card. */
+  loyalty: SaleLoyalty | null;
+}
+
+/** What this bill did to the customer's points, kept with the invoice. */
+export interface SaleLoyalty {
+  pointsEarned: number;
+  pointsRedeemed: number;
+  discountPaise: number;
+  /** The card's balance after this bill, for the receipt.  */
+  balancePoints: number;
 }
 
 /** Preview request: same shape as a sale, without payments. */
@@ -72,6 +85,7 @@ export const billPreviewSchema = z.object({
   customerId: z.string().uuid().nullable().optional(),
   lines: z.array(saleLineInputSchema),
   cartDiscountPaise: z.number().int().min(0).default(0),
+  redeemPoints: z.number().int().min(0).default(0),
 });
 
 export type BillPreviewInput = z.infer<typeof billPreviewSchema>;

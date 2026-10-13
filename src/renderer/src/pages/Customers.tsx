@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, Users, Pencil, Receipt, UserX, UserCheck } from 'lucide-react';
+import { Plus, Search, Users, Pencil, Receipt, UserX, UserCheck, Star } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { CustomerForm } from '../components/CustomerForm';
 import { CustomerHistory } from '../components/CustomerHistory';
+import { LoyaltyCardDialog } from '../components/LoyaltyCardDialog';
 import { formatPaise } from '@shared/money';
 import type { Customer, CustomerQuery, CustomerSummary } from '@shared/customer';
+import type { AppSettings } from '@shared/settings';
 
 type Status = CustomerQuery['status'];
 
@@ -21,7 +23,8 @@ const formatDate = (iso: string | null): string => {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
-export function Customers() {
+export function Customers({ settings }: { settings: AppSettings }) {
+  const loyaltyOn = settings.loyalty.enabled;
   const [items, setItems] = useState<CustomerSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
@@ -34,6 +37,7 @@ export function Customers() {
 
   const [editing, setEditing] = useState<Customer | null | 'new'>(null);
   const [viewing, setViewing] = useState<CustomerSummary | null>(null);
+  const [pointsFor, setPointsFor] = useState<CustomerSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -165,6 +169,15 @@ export function Customers() {
                       >
                         <Receipt size={15} />
                       </button>
+                      {loyaltyOn && !c.isWalkIn && (
+                        <button
+                          className="icon-btn print"
+                          title="Points"
+                          onClick={() => setPointsFor(c)}
+                        >
+                          <Star size={15} />
+                        </button>
+                      )}
                       <button className="icon-btn" title="Edit" onClick={() => setEditing(c)}>
                         <Pencil size={15} />
                       </button>
@@ -220,6 +233,16 @@ export function Customers() {
       )}
 
       {viewing && <CustomerHistory customer={viewing} onClose={() => setViewing(null)} />}
+
+      {pointsFor && (
+        <LoyaltyCardDialog
+          customer={pointsFor}
+          onClose={() => {
+            setPointsFor(null);
+            void load();
+          }}
+        />
+      )}
     </div>
   );
 }

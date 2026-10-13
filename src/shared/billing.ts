@@ -90,6 +90,12 @@ export interface Bill {
   /** Per-rate summary for the GST section of an invoice. */
   taxBreakdown: TaxBucket[];
   isInterstate: boolean;
+  /**
+   * The part of the cart discount that loyalty points paid for. Set by the
+   * sale service, not by the calculation: to the arithmetic it is a discount
+   * like any other, and only the till and the receipt care where it came from.
+   */
+  loyaltyDiscountPaise?: number;
 }
 
 /**

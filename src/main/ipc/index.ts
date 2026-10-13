@@ -24,6 +24,7 @@ import { DashboardService, DashboardError } from '../services/dashboard-service'
 import { SupplierService, SupplierError } from '../services/supplier-service';
 import { PurchaseService, PurchaseError } from '../services/purchase-service';
 import { LedgerService, LedgerError } from '../services/ledger-service';
+import { LoyaltyService, LoyaltyError } from '../services/loyalty-service';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 import { AuthService, AuthError } from '../services/auth-service';
@@ -241,6 +242,27 @@ export function registerIpcHandlers(): void {
   registerHandler('users:resetPassword', (input) =>
     auth((service) => service.resetPassword(input)),
   );
+
+  const points = <T>(work: (loyalty: LoyaltyService) => T): T => {
+    try {
+      return work(new LoyaltyService(getDatabase()));
+    } catch (err) {
+      if (err instanceof LoyaltyError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('loyalty:cards', () => points((loyalty) => loyalty.cards()));
+  registerHandler('loyalty:forCustomer', ({ customerId }) =>
+    points((loyalty) => loyalty.cardFor(customerId)),
+  );
+  registerHandler('loyalty:atTill', ({ customerId, billPaise }) =>
+    points((loyalty) => loyalty.atTill(customerId, billPaise)),
+  );
+  registerHandler('loyalty:entries', ({ cardId }) => points((loyalty) => loyalty.entries(cardId)));
+  registerHandler('loyalty:issue', (input) => points((loyalty) => loyalty.issueCard(input)));
+  registerHandler('loyalty:update', (input) => points((loyalty) => loyalty.updateCard(input)));
+  registerHandler('loyalty:adjust', (input) => points((loyalty) => loyalty.adjust(input)));
 
   const books = <T>(work: (ledger: LedgerService) => T): T => {
     try {

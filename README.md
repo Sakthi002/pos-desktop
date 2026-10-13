@@ -35,6 +35,7 @@ of scope for v1, because they need batch and expiry tracking.
 | Purchases | Supplier bills through the same tax engine, returns, payments, what is owed        |
 | Books     | Double-entry ledger posted automatically, trial balance, cash book, day book       |
 | Reports   | Seventeen reports, every one exporting to CSV; definitions in `docs/reports.md`    |
+| Points    | Optional loyalty cards, earned on the net bill, spent as a discount, on the books  |
 | Users     | Optional login, three roles, idle lock, manager approval for large voids           |
 | Safety    | Verified backups, restore with a pre-restore copy, append-only audit trail         |
 

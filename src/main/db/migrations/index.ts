@@ -7,6 +7,7 @@ import { migration005 } from './005-audit-append-only';
 import { migration006 } from './006-purchases';
 import { migration007 } from './007-ledger';
 import { migration008 } from './008-users';
+import { migration009 } from './009-loyalty';
 
 /** Ordered by version. Append only — never reorder or edit an applied entry. */
 export const migrations: Migration[] = [
@@ -18,6 +19,7 @@ export const migrations: Migration[] = [
   migration006,
   migration007,
   migration008,
+  migration009,
 ];
 
 export type { Migration };

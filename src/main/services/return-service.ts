@@ -31,6 +31,7 @@ import { CatalogueRepository } from '../db/repositories/catalogue';
 import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
 import { LedgerService } from './ledger-service';
+import { LoyaltyService } from './loyalty-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class ReturnError extends Error {
@@ -50,6 +51,7 @@ export class ReturnService {
   private readonly catalogue: CatalogueRepository;
   private readonly audit: AuditRepository;
   private readonly ledger: LedgerService;
+  private readonly loyalty: LoyaltyService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -65,6 +67,7 @@ export class ReturnService {
     this.catalogue = new CatalogueRepository(db, ctx.companyId);
     this.audit = new AuditRepository(db);
     this.ledger = new LedgerService(db);
+    this.loyalty = new LoyaltyService(db);
   }
 
   /** The invoice as a return screen needs it: what is left on each line. */
@@ -279,6 +282,22 @@ export class ReturnService {
         method: parsed.refundMethod,
         amountPaise: rounded,
         at,
+      });
+
+      // Points follow the goods: what this slice of the invoice earned comes
+      // off the card, and what it spent goes back on.
+      const saleTotal = (
+        this.db.prepare('SELECT total_paise FROM sales WHERE id = ?').get(sale.id) as {
+          total_paise: number;
+        }
+      ).total_paise;
+
+      this.loyalty.reverseForSale({
+        saleId: sale.id,
+        referenceType: 'sale_return',
+        referenceId: returnId,
+        proportion: saleTotal > 0 ? rounded / saleTotal : 0,
+        narration: `Return against ${sale.invoiceNumber}`,
       });
 
       this.ledger.postSaleReturn(returnId);

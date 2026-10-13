@@ -97,13 +97,18 @@ function createWindow(): BrowserWindow {
   const shotPath = process.env['POS_SHOT'];
   if (isDev && shotPath) {
     window.webContents.once('did-finish-load', () => {
-      setTimeout(() => {
-        void window.webContents.capturePage().then(async (image) => {
-          const { writeFile } = await import('node:fs/promises');
-          await writeFile(shotPath, image.toPNG());
-          console.log(`CAPTURED ${shotPath}`);
-        });
-      }, 2000);
+      setTimeout(
+        () => {
+          void window.webContents.capturePage().then(async (image) => {
+            const { writeFile } = await import('node:fs/promises');
+            await writeFile(shotPath, image.toPNG());
+            console.log(`CAPTURED ${shotPath}`);
+          });
+        },
+        // Long enough for the first paint and its data; POS_SHOT_DELAY waits
+        // longer when the screen being captured has to be driven into a state.
+        Number(process.env['POS_SHOT_DELAY'] ?? 2000),
+      );
     });
   }
 

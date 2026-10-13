@@ -40,6 +40,14 @@ import {
 import { reportQuerySchema, type ReportTable } from './reports';
 import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
 import {
+  adjustPointsSchema,
+  issueCardSchema,
+  updateCardSchema,
+  type LoyaltyAtTill,
+  type LoyaltyCard,
+  type LoyaltyEntry,
+} from './loyalty';
+import {
   changePasswordSchema,
   createUserSchema,
   loginSchema,
@@ -180,6 +188,17 @@ export const ipcContract = {
   'users:update': updateUserSchema,
   'users:setActive': setUserActiveSchema,
   'users:resetPassword': resetPasswordSchema,
+
+  'loyalty:cards': z.void(),
+  'loyalty:forCustomer': z.object({ customerId: z.string().uuid() }),
+  'loyalty:atTill': z.object({
+    customerId: z.string().uuid().nullable(),
+    billPaise: z.number().int().min(0),
+  }),
+  'loyalty:entries': z.object({ cardId: z.string().uuid() }),
+  'loyalty:issue': issueCardSchema,
+  'loyalty:update': updateCardSchema,
+  'loyalty:adjust': adjustPointsSchema,
 
   'ledger:accounts': z.void(),
   'ledger:trialBalance': z.object({
@@ -388,6 +407,14 @@ export interface IpcResponseMap {
   'users:update': UserSummary;
   'users:setActive': UserSummary;
   'users:resetPassword': UserSummary;
+
+  'loyalty:cards': LoyaltyCard[];
+  'loyalty:forCustomer': LoyaltyCard | null;
+  'loyalty:atTill': LoyaltyAtTill;
+  'loyalty:entries': LoyaltyEntry[];
+  'loyalty:issue': LoyaltyCard;
+  'loyalty:update': LoyaltyCard;
+  'loyalty:adjust': LoyaltyCard;
 
   'ledger:accounts': Account[];
   'ledger:trialBalance': AccountBalance[];

@@ -82,12 +82,53 @@ export class LedgerService {
     const cached = this.accountCache.get(code);
     if (cached) return cached;
 
-    const found = this.repo.accountByCode(code);
+    let found = this.repo.accountByCode(code);
+    if (!found && CHART_OF_ACCOUNTS.some((a) => a.code === code)) {
+      // A seeded account this version added, in a shop set up by an older one.
+      // Seeding is idempotent, so filling the gap is cheaper than refusing.
+      this.ensureChart();
+      found = this.repo.accountByCode(code);
+    }
     if (!found) {
       throw new LedgerError('NO_ACCOUNT', `The chart of accounts has no account ${code}.`);
     }
     this.accountCache.set(code, found);
     return found;
+  }
+
+  /**
+   * What a document moved in points, as money. Earning raises what the shop
+   * owes its customers; spending and reversals lower it. Read from the loyalty
+   * transactions rather than passed in, so the books cannot disagree with the
+   * card.
+   */
+  private loyaltyValue(referenceType: string, referenceId: string, kinds: string[]): number {
+    const placeholders = kinds.map(() => '?').join(', ');
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(points), 0) AS points
+           FROM loyalty_transactions
+          WHERE reference_type = ? AND reference_id = ? AND kind IN (${placeholders})`,
+      )
+      .get(referenceType, referenceId, ...kinds) as { points: number };
+
+    const rate = this.settings.loyalty.paisePerPoint;
+    return row.points * rate;
+  }
+
+  /** The two sides of a change in what the shop owes in points. */
+  private loyaltyLines(valuePaise: number): VoucherLine[] {
+    if (valuePaise === 0) return [];
+    const amount = Math.abs(valuePaise);
+    return valuePaise > 0
+      ? [
+          { accountCode: ACCOUNTS.loyaltyCost, debitPaise: amount },
+          { accountCode: ACCOUNTS.loyalty, creditPaise: amount },
+        ]
+      : [
+          { accountCode: ACCOUNTS.loyalty, debitPaise: amount },
+          { accountCode: ACCOUNTS.loyaltyCost, creditPaise: amount },
+        ];
   }
 
   accounts(): Account[] {
@@ -212,6 +253,8 @@ export class LedgerService {
     }
     lines.push(...this.roundOffLine(sale['round_off_paise'] as number, true));
 
+    lines.push(...this.loyaltyLines(this.loyaltyValue('sale', saleId, ['earn', 'redeem'])));
+
     return this.post({
       type: 'sale',
       date: sale['invoice_date'] as string,
@@ -249,6 +292,7 @@ export class LedgerService {
       lines.push({ accountCode: ACCOUNTS.gstOutput, debitPaise: sale['tax_paise'] as number });
     }
     lines.push(...this.roundOffLine(sale['round_off_paise'] as number, false));
+    lines.push(...this.loyaltyLines(this.loyaltyValue('sale', saleId, ['reverse'])));
 
     return this.post({
       type: 'sale_void',
@@ -278,6 +322,7 @@ export class LedgerService {
     }
     lines.push(...this.roundOffLine(credit['round_off_paise'] as number, false));
     lines.push({ accountCode: MONEY_ACCOUNT[method] ?? ACCOUNTS.cash, creditPaise: total });
+    lines.push(...this.loyaltyLines(this.loyaltyValue('sale_return', returnId, ['reverse'])));
 
     return this.post({
       type: 'sale_return',
@@ -286,6 +331,33 @@ export class LedgerService {
       referenceType: 'sale_return',
       referenceId: returnId,
       lines,
+    });
+  }
+
+  /**
+   * A points correction made by hand. Earning and spending ride along with
+   * their sale; an adjustment has no document of its own, so it gets a journal
+   * voucher — otherwise what the shop owes in points and what the books say it
+   * owes would drift apart on the first correction.
+   */
+  postLoyaltyAdjustment(transactionId: string): string | null {
+    if (this.repo.hasVoucher('loyalty_adjustment', transactionId, 'journal')) return null;
+
+    const value = this.loyaltyValue('manual', transactionId, ['adjust']);
+    if (value === 0) return null;
+
+    const row = this.db
+      .prepare('SELECT created_at, narration FROM loyalty_transactions WHERE id = ?')
+      .get(transactionId) as { created_at: string; narration: string | null } | undefined;
+    if (!row) throw new LedgerError('NOT_FOUND', 'That points entry does not exist.');
+
+    return this.post({
+      type: 'journal',
+      date: row.created_at,
+      narration: `Points adjusted — ${row.narration ?? 'no reason given'}`,
+      referenceType: 'loyalty_adjustment',
+      referenceId: transactionId,
+      lines: this.loyaltyLines(value),
     });
   }
 

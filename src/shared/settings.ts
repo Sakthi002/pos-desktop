@@ -130,6 +130,26 @@ export const securitySchema = z.object({
   approvalAbovePaise: z.number().int().min(0).default(100000),
 });
 
+export const loyaltySchema = z.object({
+  /** Off by default: a shop that does not run points should never see them. */
+  enabled: z.boolean().default(false),
+  /** Points earned per ₹100 of the bill, net of discounts and before tax. */
+  pointsPerHundred: z.number().int().min(0).max(1000).default(1),
+  /** What one point is worth when it comes back. */
+  paisePerPoint: z.number().int().min(1).max(10000).default(100),
+  /** Nobody wants to redeem three points; this is the floor. */
+  minimumRedeemPoints: z.number().int().min(0).max(100000).default(50),
+  /** Most of a bill that points may pay for, as a percentage. */
+  maxRedeemPercent: z.number().int().min(1).max(100).default(50),
+  /** Months a new card runs for. Null never expires. */
+  cardExpiryMonths: z
+    .union([z.number().int().min(1).max(120), z.null()])
+    .optional()
+    .transform((v) => v ?? null),
+  /** Printed on the receipt under the totals. */
+  showOnReceipt: z.boolean().default(true),
+});
+
 export const appSettingsSchema = z.object({
   shop: shopSchema,
   locale: localeSchema,
@@ -140,6 +160,7 @@ export const appSettingsSchema = z.object({
   inventory: inventorySchema,
   backup: backupSchema,
   security: securitySchema,
+  loyalty: loyaltySchema,
 });
 
 export type ShopSettings = z.infer<typeof shopSchema>;
@@ -157,6 +178,7 @@ export const settingsPatchSchema = z.object({
   inventory: inventorySchema.partial().optional(),
   backup: backupSchema.partial().optional(),
   security: securitySchema.partial().optional(),
+  loyalty: loyaltySchema.partial().optional(),
 });
 
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;
@@ -173,6 +195,7 @@ export function defaultSettings(shopName: string): AppSettings {
     inventory: {},
     backup: {},
     security: {},
+    loyalty: {},
   });
 }
 

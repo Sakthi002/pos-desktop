@@ -15,6 +15,7 @@ import {
   Package,
   LayoutGrid,
   WifiOff,
+  Star,
 } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { PaymentDialog } from '../components/PaymentDialog';
@@ -26,6 +27,7 @@ import type { PaymentInput, SaleReceipt } from '@shared/sale';
 import { formatPaise, parseRupees } from '@shared/money';
 import { formatQuantity, parseQuantity, precisionFor } from '@shared/quantity';
 import type { AppSettings } from '@shared/settings';
+import { TIER_LABELS, type LoyaltyAtTill } from '@shared/loyalty';
 
 interface CartLine {
   product: Product;
@@ -76,6 +78,8 @@ export function Pos({ settings }: { settings: AppSettings }) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [cartDiscount, setCartDiscount] = useState('');
+  const [points, setPoints] = useState<LoyaltyAtTill | null>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
   const [rawBill, setBill] = useState<Bill | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -156,8 +160,9 @@ export function Pos({ settings }: { settings: AppSettings }) {
         discountPaise: l.discountPaise,
       })),
       cartDiscountPaise: parseRupees(cartDiscount) ?? 0,
+      redeemPoints,
     }),
-    [cart, customer, cartDiscount],
+    [cart, customer, cartDiscount, redeemPoints],
   );
 
   useEffect(() => {
@@ -177,6 +182,29 @@ export function Pos({ settings }: { settings: AppSettings }) {
   // Derived rather than stored, so clearing the cart cannot leave a stale total
   // on screen for a frame while the next preview is in flight.
   const bill = cart.length === 0 ? null : rawBill;
+
+  // What this customer's card could pay for, asked of the main process so the
+  // caps are the same ones the sale will apply.
+  const billBeforePoints = (bill?.totalPaise ?? 0) + (bill?.loyaltyDiscountPaise ?? 0);
+  const cardHolderId = customer?.isWalkIn ? null : (customer?.id ?? null);
+
+  useEffect(() => {
+    if (!cardHolderId || billBeforePoints === 0) return;
+    let cancelled = false;
+    void call('loyalty:atTill', { customerId: cardHolderId, billPaise: billBeforePoints })
+      .then((result) => {
+        if (!cancelled) setPoints(result);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [cardHolderId, billBeforePoints]);
+
+  // Derived, not stored: an empty cart or a walk-in has nothing to offer, and
+  // the last customer's card must not linger on screen while the next ask is
+  // still in flight.
+  const offer = cardHolderId && billBeforePoints > 0 && points?.card ? points : null;
 
   // ─── Cart ─────────────────────────────────────────────────────────────────
 
@@ -261,6 +289,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
     if (!entry) return;
     setCart(entry.lines);
     setCustomer(entry.customer);
+    setRedeemPoints(0);
     setCartDiscount(entry.cartDiscountPaise ? (entry.cartDiscountPaise / 100).toFixed(2) : '');
     setHeld((h) => h.filter((x) => x.id !== id));
     idempotencyKey.current = crypto.randomUUID();
@@ -282,6 +311,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
           discountPaise: l.discountPaise,
         })),
         cartDiscountPaise: parseRupees(cartDiscount) ?? 0,
+        redeemPoints,
         payments,
       });
       setReceipt(result);
@@ -465,6 +495,30 @@ export function Pos({ settings }: { settings: AppSettings }) {
             </span>
             <span className="change-link">Change</span>
           </button>
+
+          {offer?.card && (
+            <div className="points-strip">
+              <span className="points-balance">
+                <Star size={13} />
+                {offer.card.balancePoints} points · {TIER_LABELS[offer.card.tier]}
+              </span>
+
+              {offer.blockedReason ? (
+                <span className="points-note">{offer.blockedReason}</span>
+              ) : redeemPoints > 0 ? (
+                <button className="link-btn" onClick={() => setRedeemPoints(0)}>
+                  Using {redeemPoints} · remove
+                </button>
+              ) : (
+                <button
+                  className="link-btn"
+                  onClick={() => setRedeemPoints(offer.maxRedeemablePoints)}
+                >
+                  Use {offer.maxRedeemablePoints} ({formatPaise(offer.maxRedeemablePaise)})
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bill-count">
@@ -644,6 +698,13 @@ export function Pos({ settings }: { settings: AppSettings }) {
               />
             </div>
 
+            {bill && (bill.loyaltyDiscountPaise ?? 0) > 0 && (
+              <div className="t-row">
+                <span>Points used</span>
+                <span>−{formatPaise(bill.loyaltyDiscountPaise ?? 0)}</span>
+              </div>
+            )}
+
             {bill && bill.roundOffPaise !== 0 && (
               <div className="t-row small">
                 <span>Round off</span>
@@ -742,6 +803,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
                     <button
                       onClick={() => {
                         setCustomer(c);
+                        setRedeemPoints(0);
                         setShowCustomers(false);
                       }}
                     >

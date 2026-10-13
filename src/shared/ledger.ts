@@ -46,6 +46,7 @@ export const ACCOUNTS = {
   purchases: '5100',
   purchaseReturn: '5200',
   discountAllowed: '5300',
+  loyaltyCost: '5400',
 } as const;
 
 export interface SeedAccount {
@@ -75,6 +76,7 @@ export const CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: ACCOUNTS.purchases, name: 'Purchases', group: 'expense', normal: 'debit' },
   { code: ACCOUNTS.purchaseReturn, name: 'Purchase returns', group: 'expense', normal: 'credit' },
   { code: ACCOUNTS.discountAllowed, name: 'Discount allowed', group: 'expense', normal: 'debit' },
+  { code: ACCOUNTS.loyaltyCost, name: 'Loyalty points', group: 'expense', normal: 'debit' },
 ];
 
 /** Where money of each kind lands. */
