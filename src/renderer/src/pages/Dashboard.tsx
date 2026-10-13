@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Receipt } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarClock,
+  Receipt,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
+import { hueStyle } from '../lib/hues';
 import { call } from '../lib/ipc';
 import { formatPaise } from '@shared/money';
 import { formatQuantity, precisionFor } from '@shared/quantity';
@@ -77,7 +85,10 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
       ) : (
         <div className="dash">
           <section className="dash-row">
-            <div className="stat">
+            <div className="stat hued" style={hueStyle('indigo')}>
+              <span className="stat-chip">
+                <Wallet size={17} />
+              </span>
               <span className="stat-label">Takings today</span>
               <strong className="stat-value">{formatPaise(today.netPaise)}</strong>
               <span className="stat-note">
@@ -85,14 +96,20 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
                 {today.returnedPaise > 0 && ` · ${formatPaise(today.returnedPaise)} returned`}
               </span>
             </div>
-            <div className="stat">
+            <div className="stat hued" style={hueStyle('teal')}>
+              <span className="stat-chip">
+                <TrendingUp size={17} />
+              </span>
               <span className="stat-label">Last seven days</span>
               <strong className="stat-value">{formatPaise(week.netPaise)}</strong>
               <span className="stat-note">
                 {week.invoices} {week.invoices === 1 ? 'bill' : 'bills'}
               </span>
             </div>
-            <div className="stat">
+            <div className="stat hued" style={hueStyle('violet')}>
+              <span className="stat-chip">
+                <Receipt size={17} />
+              </span>
               <span className="stat-label">Average bill today</span>
               <strong className="stat-value">
                 {today.invoices > 0
@@ -103,7 +120,10 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
             </div>
 
             {data.expiring.batches > 0 && (
-              <div className="stat">
+              <div className="stat hued" style={hueStyle('amber')}>
+                <span className="stat-chip">
+                  <CalendarClock size={17} />
+                </span>
                 <span className="stat-label">Expiring within a month</span>
                 <strong className="stat-value">{data.expiring.batches}</strong>
                 <span className="stat-note">

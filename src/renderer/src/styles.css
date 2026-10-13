@@ -35,30 +35,48 @@
 }
 
 :root {
-  --bg: #f5f6f8;
+  --bg: #f4f5fb;
   --surface: #ffffff;
-  --raised: #fafbfc;
-  --line: #e6e9ee;
-  --line-soft: #f0f2f5;
+  --raised: #fafaff;
+  --line: #e5e7f0;
+  --line-soft: #eff1f8;
 
-  --ink: #101418;
-  --ink-2: #3c4651;
-  --muted: #5a6572;
-  --faint: #8a94a1;
+  --ink: #10121c;
+  --ink-2: #3a4054;
+  --muted: #5a6175;
+  --faint: #8c93a8;
 
-  --accent: #0e7c5a;
-  --accent-dark: #0a6349;
-  --accent-tint: #e8f4ef;
-  --accent-edge: #cde5db;
+  /* Indigo leads, because money keeps green to itself: a figure in green on
+     this screen means something was taken in, never merely that it is a
+     button. */
+  --accent: #4f46e5;
+  --accent-dark: #4338ca;
+  --accent-tint: #eef0ff;
+  --accent-edge: #d7daf9;
 
-  --ok: #0a6349;
-  --ok-tint: #e8f4ef;
-  --warn: #92400e;
-  --warn-tint: #fef6e7;
-  --err: #b42318;
-  --err-tint: #fdecec;
-  --info: #3730a3;
-  --info-tint: #eef2ff;
+  --ok: #0a7c55;
+  --ok-tint: #e6f6ef;
+  --warn: #b45309;
+  --warn-tint: #fef4e4;
+  --err: #be123c;
+  --err-tint: #ffe9ee;
+  --info: #4338ca;
+  --info-tint: #eef0ff;
+
+  /* The six hues the app draws with. Each screen uses them in a fixed order,
+     so a shopkeeper learns where to look rather than rereading the labels. */
+  --c-indigo: #4f46e5;
+  --c-indigo-tint: #eef0ff;
+  --c-violet: #7c3aed;
+  --c-violet-tint: #f4edff;
+  --c-teal: #0d9488;
+  --c-teal-tint: #e3f7f4;
+  --c-amber: #c2620a;
+  --c-amber-tint: #fef2e2;
+  --c-rose: #e11d48;
+  --c-rose-tint: #ffe8ee;
+  --c-sky: #0284c7;
+  --c-sky-tint: #e3f3fd;
 
   --r-xs: 8px;
   --r-sm: 10px;
@@ -495,13 +513,13 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  height: 46px;
-  padding: 0 20px;
-  border-radius: var(--r);
+  gap: 8px;
+  height: 38px;
+  padding: 0 15px;
+  border-radius: var(--r-sm);
   border: 1px solid transparent;
   font-family: inherit;
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -512,14 +530,14 @@ select {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--c-violet) 100%);
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(14, 124, 90, 0.18);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.24);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-dark);
+  background: linear-gradient(135deg, var(--accent-dark) 0%, #6d28d9 100%);
 }
 
 .btn-secondary {
@@ -545,9 +563,12 @@ select {
 .btn-primary:disabled,
 .btn-secondary:disabled,
 .btn-danger:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
+  background: var(--line-soft);
+  background-image: none;
+  color: var(--faint);
+  border-color: var(--line);
 }
 
 .btn-secondary.small {
@@ -560,8 +581,8 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
@@ -729,9 +750,27 @@ kbd {
 }
 
 .nav-item.on {
-  background: var(--accent-tint);
-  color: var(--accent);
+  background: var(--hue-tint, var(--accent-tint));
+  color: var(--hue, var(--accent));
   font-weight: 700;
+}
+
+/* Each screen keeps its own colour, in the sidebar and on its own cards, so
+   the eye finds Purchases by its colour before it reads the word. */
+.nav-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--hue-tint, var(--accent-tint));
+  color: var(--hue, var(--accent));
+}
+
+.nav-item.on .nav-icon {
+  background: var(--hue, var(--accent));
+  color: #fff;
 }
 
 .nav-item:disabled {
@@ -1514,6 +1553,21 @@ td.actions .icon-btn.danger:disabled {
   background: var(--line-soft);
 }
 
+.cat .cat-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--hue-tint, var(--line-soft));
+  color: var(--hue, var(--muted));
+}
+
+.cat.on .cat-mark {
+  background: var(--hue, var(--accent));
+  color: #fff;
+}
+
 .cat.on {
   background: var(--accent-tint);
   border-color: var(--accent-edge);
@@ -2045,11 +2099,11 @@ td.actions .icon-btn.danger:disabled {
 
 .pay-btn {
   width: 100%;
-  height: 56px;
+  height: 54px;
   margin-top: 14px;
-  font-size: 16.5px;
+  font-size: 16px;
   border-radius: var(--r-md);
-  box-shadow: 0 6px 16px rgba(14, 124, 90, 0.22);
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.22);
 }
 
 .pos-secondary {
@@ -2419,6 +2473,7 @@ td.actions .icon-btn.danger:disabled {
 }
 
 .stat {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -2427,6 +2482,28 @@ td.actions .icon-btn.danger:disabled {
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
+  overflow: hidden;
+}
+
+/* A stripe of the card's own colour, rather than a border all the way round:
+   enough to tell the cards apart at a glance, not enough to shout. */
+.stat.hued::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--hue, var(--accent));
+}
+
+.stat-chip {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 2px;
+  border-radius: 11px;
+  background: var(--hue-tint, var(--accent-tint));
+  color: var(--hue, var(--accent));
 }
 
 .stat-label {

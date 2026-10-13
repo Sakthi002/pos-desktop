@@ -21,6 +21,7 @@ import type { AppSettings } from '@shared/settings';
 import type { DbStatus } from '@shared/ipc-contract';
 import type { Session, SessionState } from '@shared/auth';
 import { ROLE_LABELS, type Permission } from '@shared/permissions';
+import { hueStyle, type Hue } from '../lib/hues';
 
 export type Route =
   | 'dashboard'
@@ -35,18 +36,51 @@ export type Route =
   | 'reports'
   | 'settings';
 
-const NAV: { id: Route; label: string; icon: typeof Package; needs: Permission }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, needs: 'report.view' },
-  { id: 'pos', label: 'New Sale', icon: ShoppingCart, needs: 'sell' },
-  { id: 'sales', label: 'Sales', icon: Receipt, needs: 'sale.view' },
-  { id: 'products', label: 'Products', icon: Package, needs: 'product.manage' },
-  { id: 'categories', label: 'Categories', icon: FolderTree, needs: 'product.manage' },
-  { id: 'inventory', label: 'Inventory', icon: Boxes, needs: 'report.view' },
-  { id: 'purchases', label: 'Purchases', icon: PackagePlus, needs: 'purchase.manage' },
-  { id: 'suppliers', label: 'Suppliers', icon: Truck, needs: 'purchase.manage' },
-  { id: 'customers', label: 'Customers', icon: Users, needs: 'customer.manage' },
-  { id: 'reports', label: 'Reports', icon: BarChart3, needs: 'report.view' },
-  { id: 'settings', label: 'Settings', icon: SettingsIcon, needs: 'settings.manage' },
+interface NavItem {
+  id: Route;
+  label: string;
+  icon: typeof Package;
+  needs: Permission;
+  /** The screen's own colour, fixed so it never moves between sessions. */
+  hue: Hue;
+}
+
+const NAV: NavItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    needs: 'report.view',
+    hue: 'indigo',
+  },
+  { id: 'pos', label: 'New Sale', icon: ShoppingCart, needs: 'sell', hue: 'violet' },
+  { id: 'sales', label: 'Sales', icon: Receipt, needs: 'sale.view', hue: 'sky' },
+  { id: 'products', label: 'Products', icon: Package, needs: 'product.manage', hue: 'teal' },
+  {
+    id: 'categories',
+    label: 'Categories',
+    icon: FolderTree,
+    needs: 'product.manage',
+    hue: 'amber',
+  },
+  { id: 'inventory', label: 'Inventory', icon: Boxes, needs: 'report.view', hue: 'rose' },
+  {
+    id: 'purchases',
+    label: 'Purchases',
+    icon: PackagePlus,
+    needs: 'purchase.manage',
+    hue: 'violet',
+  },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck, needs: 'purchase.manage', hue: 'sky' },
+  { id: 'customers', label: 'Customers', icon: Users, needs: 'customer.manage', hue: 'teal' },
+  { id: 'reports', label: 'Reports', icon: BarChart3, needs: 'report.view', hue: 'amber' },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: SettingsIcon,
+    needs: 'settings.manage',
+    hue: 'indigo',
+  },
 ];
 
 const clockLabel = (d: Date): string => {
@@ -142,9 +176,12 @@ export function AppShell({
                 <button
                   key={item.id}
                   className={route === item.id ? 'nav-item on' : 'nav-item'}
+                  style={hueStyle(item.hue)}
                   onClick={() => onNavigate(item.id)}
                 >
-                  <Icon size={17} />
+                  <span className="nav-icon">
+                    <Icon size={16} />
+                  </span>
                   <span>{item.label}</span>
                 </button>
               );
@@ -168,25 +205,26 @@ export function AppShell({
           {/* With the sidebar away, the bar carries the shop's own name. */}
           {billing && brand}
 
+          {billing
+            ? leaveTill && (
+                <button className="btn-primary" onClick={() => onNavigate(leaveTill)}>
+                  <LayoutDashboard size={15} />
+                  {leaveTill === 'dashboard' ? 'Dashboard' : 'Sales'}
+                </button>
+              )
+            : allowed('sell') && (
+                <button className="btn-primary" onClick={() => onNavigate('pos')}>
+                  <ShoppingCart size={15} /> New sale
+                </button>
+              )}
+
           <span className="till-chip">{dayLabel(now)}</span>
           <span className="till-chip mono">{clockLabel(now)}</span>
-          <span className="till-chip ghost">
-            <WifiOff size={13} /> Works offline · saved on this computer
-          </span>
 
           <div className="topbar-right">
-            {billing
-              ? leaveTill && (
-                  <button className="btn-secondary" onClick={() => onNavigate(leaveTill)}>
-                    <LayoutDashboard size={15} />
-                    {leaveTill === 'dashboard' ? 'Dashboard' : 'Sales'}
-                  </button>
-                )
-              : allowed('sell') && (
-                  <button className="btn-primary" onClick={() => onNavigate('pos')}>
-                    <ShoppingCart size={15} /> New sale
-                  </button>
-                )}
+            <span className="till-chip ghost">
+              <WifiOff size={13} /> Works offline · saved on this computer
+            </span>
 
             {session && (
               <div className="who">

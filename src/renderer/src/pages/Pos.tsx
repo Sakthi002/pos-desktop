@@ -18,6 +18,7 @@ import {
   Star,
 } from 'lucide-react';
 import { call } from '../lib/ipc';
+import { hueFor, hueStyle } from '../lib/hues';
 import { PaymentDialog } from '../components/PaymentDialog';
 import { ReceiptPreview } from '../components/ReceiptPreview';
 import { UNCATEGORISED, type Category, type Product } from '@shared/catalogue';
@@ -55,11 +56,12 @@ interface HeldCart {
 
 /** Colour a product tile from its name, so the wall of tiles is scannable. */
 const TILE_TINTS = [
-  { bg: '#E8F4EF', ink: '#0A6349' },
-  { bg: '#EEF2FF', ink: '#3730A3' },
-  { bg: '#FEF6E7', ink: '#92400E' },
-  { bg: '#F3EEFB', ink: '#5B21B6' },
-  { bg: '#FDF0EC', ink: '#9A3412' },
+  { bg: '#eef0ff', ink: '#4f46e5' },
+  { bg: '#f4edff', ink: '#7c3aed' },
+  { bg: '#e3f7f4', ink: '#0d9488' },
+  { bg: '#fef2e2', ink: '#c2620a' },
+  { bg: '#ffe8ee', ink: '#e11d48' },
+  { bg: '#e3f3fd', ink: '#0284c7' },
 ] as const;
 
 const tintFor = (id: string) => {
@@ -404,28 +406,37 @@ export function Pos({ settings }: { settings: AppSettings }) {
             <nav className="cat-rail" aria-label="Categories">
               <button
                 className={activeCategory === '' ? 'cat on' : 'cat'}
+                style={hueStyle('indigo')}
                 onClick={() => setActiveCategory('')}
               >
-                <LayoutGrid size={20} />
+                <span className="cat-mark">
+                  <LayoutGrid size={18} />
+                </span>
                 <span>All</span>
               </button>
               {categories.map((c) => (
                 <button
                   key={c.id}
                   className={activeCategory === c.id ? 'cat on' : 'cat'}
+                  style={hueStyle(hueFor(c.name))}
                   onClick={() => setActiveCategory(c.id)}
                 >
-                  <Package size={20} />
+                  <span className="cat-mark">
+                    <Package size={18} />
+                  </span>
                   <span>{c.name}</span>
                 </button>
               ))}
               {unfiled > 0 && (
                 <button
                   className={activeCategory === UNCATEGORISED ? 'cat on' : 'cat'}
+                  style={hueStyle('rose')}
                   onClick={() => setActiveCategory(UNCATEGORISED)}
                   title={`${unfiled} product${unfiled === 1 ? '' : 's'} with no category`}
                 >
-                  <PackageOpen size={20} />
+                  <span className="cat-mark">
+                    <PackageOpen size={18} />
+                  </span>
                   <span>Unfiled</span>
                 </button>
               )}
