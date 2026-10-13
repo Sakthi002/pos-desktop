@@ -410,7 +410,8 @@ export class LedgerRepository extends Repository {
       | 'purchase'
       | 'purchase_cancel'
       | 'purchase_return'
-      | 'supplier_payment';
+      | 'supplier_payment'
+      | 'customer_receipt';
     id: string;
     at: string;
   }[] {
@@ -449,6 +450,11 @@ export class LedgerRepository extends Repository {
           WHERE r.company_id = @companyId
             AND NOT EXISTS (SELECT 1 FROM vouchers v
                              WHERE v.reference_type = 'purchase_return' AND v.reference_id = r.id)
+         UNION ALL
+         SELECT 'customer_receipt', cr.id, cr.receipt_date FROM customer_receipts cr
+          WHERE cr.company_id = @companyId
+            AND NOT EXISTS (SELECT 1 FROM vouchers v
+                             WHERE v.reference_type = 'customer_receipt' AND v.reference_id = cr.id)
          UNION ALL
          SELECT 'supplier_payment', sp.id, sp.payment_date FROM supplier_payments sp
           WHERE sp.company_id = @companyId

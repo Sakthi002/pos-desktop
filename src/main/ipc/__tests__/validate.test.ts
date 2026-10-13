@@ -98,9 +98,14 @@ describe('money and quantity', () => {
     ).toBe(false);
   });
 
-  it('refuses a sale with no lines or no payment', () => {
+  it('refuses a sale with no lines', () => {
     expect(validatePayload('sales:create', sale({ lines: [] })).ok).toBe(false);
-    expect(validatePayload('sales:create', sale({ payments: [] })).ok).toBe(false);
+  });
+
+  it('accepts a sale with no payment, because credit has none', () => {
+    // The service decides whether an unpaid bill is credit or a mistake; the
+    // gate only checks the shape.
+    expect(validatePayload('sales:create', sale({ payments: [] })).ok).toBe(true);
   });
 
   it('refuses a payment method the app does not support', () => {

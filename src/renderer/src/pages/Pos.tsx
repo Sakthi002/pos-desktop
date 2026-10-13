@@ -28,12 +28,21 @@ import { formatPaise, parseRupees } from '@shared/money';
 import { formatQuantity, parseQuantity, precisionFor } from '@shared/quantity';
 import type { AppSettings } from '@shared/settings';
 import { TIER_LABELS, type LoyaltyAtTill } from '@shared/loyalty';
+import {
+  PRICE_LEVELS,
+  PRICE_LEVEL_LABELS,
+  priceAt,
+  type CustomerAccount,
+  type PriceLevel,
+} from '@shared/trade';
 
 interface CartLine {
   product: Product;
   quantityMilli: number;
   unitPricePaise: number;
   discountPaise: number;
+  /** True once the operator has typed a price, so changing the list leaves it. */
+  priceOverridden?: boolean;
 }
 
 interface HeldCart {
@@ -79,6 +88,8 @@ export function Pos({ settings }: { settings: AppSettings }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [cartDiscount, setCartDiscount] = useState('');
   const [points, setPoints] = useState<LoyaltyAtTill | null>(null);
+  const [priceLevel, setPriceLevel] = useState<PriceLevel>('retail');
+  const [account, setAccount] = useState<CustomerAccount | null>(null);
   const [redeemPoints, setRedeemPoints] = useState(0);
   const [rawBill, setBill] = useState<Bill | null>(null);
 
@@ -161,8 +172,9 @@ export function Pos({ settings }: { settings: AppSettings }) {
       })),
       cartDiscountPaise: parseRupees(cartDiscount) ?? 0,
       redeemPoints,
+      priceLevel,
     }),
-    [cart, customer, cartDiscount, redeemPoints],
+    [cart, customer, cartDiscount, redeemPoints, priceLevel],
   );
 
   useEffect(() => {
@@ -201,6 +213,16 @@ export function Pos({ settings }: { settings: AppSettings }) {
     };
   }, [cardHolderId, billBeforePoints]);
 
+  // A customer brings their own price list and their own account. Both are
+  // read when they are chosen rather than held on the till, so a limit raised
+  // in another window is the one that applies here.
+  useEffect(() => {
+    if (!cardHolderId) return;
+    void call('counter:account', { customerId: cardHolderId })
+      .then(setAccount)
+      .catch(() => undefined);
+  }, [cardHolderId]);
+
   // Derived, not stored: an empty cart or a walk-in has nothing to offer, and
   // the last customer's card must not linger on screen while the next ask is
   // still in flight.
@@ -208,29 +230,32 @@ export function Pos({ settings }: { settings: AppSettings }) {
 
   // ─── Cart ─────────────────────────────────────────────────────────────────
 
-  const addProduct = useCallback((product: Product) => {
-    setCart((current) => {
-      const index = current.findIndex((l) => l.product.id === product.id);
-      if (index >= 0) {
-        // Same product again: bump the quantity by one unit of its measure.
-        return current.map((l, i) =>
-          i === index ? { ...l, quantityMilli: l.quantityMilli + 1000 } : l,
-        );
-      }
-      return [
-        ...current,
-        {
-          product,
-          quantityMilli: 1000,
-          unitPricePaise: product.pricePaise,
-          discountPaise: 0,
-        },
-      ];
-    });
-    setSearch('');
-    setResults([]);
-    searchRef.current?.focus();
-  }, []);
+  const addProduct = useCallback(
+    (product: Product) => {
+      setCart((current) => {
+        const index = current.findIndex((l) => l.product.id === product.id);
+        if (index >= 0) {
+          // Same product again: bump the quantity by one unit of its measure.
+          return current.map((l, i) =>
+            i === index ? { ...l, quantityMilli: l.quantityMilli + 1000 } : l,
+          );
+        }
+        return [
+          ...current,
+          {
+            product,
+            quantityMilli: 1000,
+            unitPricePaise: priceAt(priceLevel, product),
+            discountPaise: 0,
+          },
+        ];
+      });
+      setSearch('');
+      setResults([]);
+      searchRef.current?.focus();
+    },
+    [priceLevel],
+  );
 
   /** A barcode scanner types fast and ends with Enter; treat an exact match as a scan. */
   function onSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -244,6 +269,17 @@ export function Pos({ settings }: { settings: AppSettings }) {
       visibleResults[0];
     if (exact) addProduct(exact);
   }
+
+  // Moving a bill to another price list re-prices it, except for lines the
+  // operator has already overridden by hand.
+  const changeLevel = (level: PriceLevel) => {
+    setPriceLevel(level);
+    setCart((current) =>
+      current.map((line) =>
+        line.priceOverridden ? line : { ...line, unitPricePaise: priceAt(level, line.product) },
+      ),
+    );
+  };
 
   const setQuantity = (productId: string, milli: number) =>
     setCart((c) =>
@@ -297,7 +333,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
 
   // ─── Checkout ─────────────────────────────────────────────────────────────
 
-  async function completeSale(payments: PaymentInput[]) {
+  async function completeSale(payments: PaymentInput[], onCredit = false) {
     setSaving(true);
     setPayError(null);
     try {
@@ -312,6 +348,8 @@ export function Pos({ settings }: { settings: AppSettings }) {
         })),
         cartDiscountPaise: parseRupees(cartDiscount) ?? 0,
         redeemPoints,
+        priceLevel,
+        onCredit,
         payments,
       });
       setReceipt(result);
@@ -496,6 +534,29 @@ export function Pos({ settings }: { settings: AppSettings }) {
             <span className="change-link">Change</span>
           </button>
 
+          {priceLevel !== 'retail' || (account && account.creditLimitPaise > 0) ? (
+            <div className="terms-strip">
+              <select
+                className="level-select"
+                value={priceLevel}
+                onChange={(e) => changeLevel(e.target.value as PriceLevel)}
+                aria-label="Price list for this bill"
+              >
+                {PRICE_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {PRICE_LEVEL_LABELS[level]}
+                  </option>
+                ))}
+              </select>
+              {account && account.creditLimitPaise > 0 && (
+                <span className="terms-note">
+                  Owes {formatPaise(account.outstandingPaise)} of{' '}
+                  {formatPaise(account.creditLimitPaise)}
+                </span>
+              )}
+            </div>
+          ) : null}
+
           {offer?.card && (
             <div className="points-strip">
               <span className="points-balance">
@@ -608,7 +669,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
                               setCart((c) =>
                                 c.map((x) =>
                                   x.product.id === l.product.id
-                                    ? { ...x, unitPricePaise: parsed }
+                                    ? { ...x, unitPricePaise: parsed, priceOverridden: true }
                                     : x,
                                 ),
                               );
@@ -746,7 +807,15 @@ export function Pos({ settings }: { settings: AppSettings }) {
           settings={settings}
           busy={saving}
           error={payError}
-          onConfirm={(payments) => void completeSale(payments)}
+          credit={
+            account && account.creditLimitPaise > 0
+              ? {
+                  customerName: account.customerName,
+                  availablePaise: account.availablePaise,
+                }
+              : null
+          }
+          onConfirm={(payments, onCredit) => void completeSale(payments, onCredit)}
           onClose={() => {
             setPaying(false);
             setPayError(null);
@@ -804,6 +873,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
                       onClick={() => {
                         setCustomer(c);
                         setRedeemPoints(0);
+                        changeLevel(c.priceLevel);
                         setShowCustomers(false);
                       }}
                     >

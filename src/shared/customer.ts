@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PRICE_LEVELS, type PriceLevel } from './trade';
 
 export interface Customer {
   id: string;
@@ -10,6 +11,10 @@ export interface Customer {
   stateCode: string | null;
   isWalkIn: boolean;
   isActive: boolean;
+  /** Which price list this customer is billed at. */
+  priceLevel: PriceLevel;
+  /** Zero means cash only: nothing may be left unpaid. */
+  creditLimitPaise: number;
 }
 
 export const customerInputSchema = z.object({
@@ -45,6 +50,8 @@ export const customerInputSchema = z.object({
     ])
     .optional()
     .transform((v) => (v === null ? '' : v)),
+  priceLevel: z.enum(PRICE_LEVELS).default('retail'),
+  creditLimitPaise: z.number().int().min(0).default(0),
   /** Drives CGST+SGST versus IGST on this customer's invoices. */
   stateCode: z
     .union([z.string().regex(/^\d{2}$/), z.literal(''), z.null()])
@@ -74,6 +81,8 @@ export interface CustomerSummary extends Customer {
   invoices: number;
   totalPaise: number;
   lastPurchaseAt: string | null;
+  /** Billed on credit, less credit notes, less what has been received. */
+  outstandingPaise: number;
 }
 
 export interface CustomerPage {

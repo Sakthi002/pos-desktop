@@ -13,6 +13,7 @@ import { pickLogo } from '../services/logo-service';
 import { openCsv, saveCsv, pickDirectory, pickBackupFile } from '../services/file-service';
 import { listPrinters, printDocument, exportPdf } from '../services/print-service';
 import { buildReceiptHtml, type PaperSize } from '@shared/receipt';
+import { buildLabelsHtml, type LabelRequest } from '@shared/labels';
 import { readLogo } from '../services/logo-service';
 import { CatalogueService, CatalogueError } from '../services/catalogue-service';
 import { SaleService, SaleError } from '../services/sale-service';
@@ -26,6 +27,7 @@ import { PurchaseService, PurchaseError } from '../services/purchase-service';
 import { LedgerService, LedgerError } from '../services/ledger-service';
 import { LoyaltyService, LoyaltyError } from '../services/loyalty-service';
 import { BatchService, BatchError } from '../services/batch-service';
+import { CounterService, CounterError } from '../services/counter-service';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 import { AuthService, AuthError } from '../services/auth-service';
@@ -244,6 +246,27 @@ export function registerIpcHandlers(): void {
     auth((service) => service.resetPassword(input)),
   );
 
+  const counter = <T>(work: (service: CounterService) => T): T => {
+    try {
+      return work(new CounterService(getDatabase()));
+    } catch (err) {
+      if (err instanceof CounterError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('counter:account', ({ customerId }) =>
+    counter((service) => service.account(customerId)),
+  );
+  registerHandler('counter:receipts', ({ customerId }) =>
+    counter((service) => service.receipts(customerId)),
+  );
+  registerHandler('counter:receive', (input) => counter((service) => service.recordReceipt(input)));
+  registerHandler('shift:current', () => counter((service) => service.current()));
+  registerHandler('shift:recent', () => counter((service) => service.recent()));
+  registerHandler('shift:open', (input) => counter((service) => service.openShift(input)));
+  registerHandler('shift:close', (input) => counter((service) => service.closeShift(input)));
+
   const batched = <T>(work: (batches: BatchService) => T): T => {
     try {
       return work(new BatchService(getDatabase()));
@@ -418,6 +441,47 @@ export function registerIpcHandlers(): void {
   };
 
   registerHandler('print:listPrinters', async () => listPrinters(focusedWindow()));
+
+  /**
+   * Shelf labels. The products are read here rather than trusted from the
+   * renderer, so a label always carries the price the till would charge.
+   */
+  const labelSheet = (request: LabelRequest): string => {
+    const db = getDatabase();
+    const settings = new SettingsService(db).require();
+    const ids = request.items.map((i) => i.productId);
+    const placeholders = ids.map(() => '?').join(',');
+
+    const rows = db
+      .prepare(
+        `SELECT id, name, sku, barcode, price_paise, mrp_paise, wholesale_price_paise,
+                special_price_paise, unit_code
+           FROM products WHERE id IN (${placeholders})`,
+      )
+      .all(...ids) as Record<string, unknown>[];
+
+    return buildLabelsHtml({
+      request,
+      settings,
+      products: rows.map((row) => ({
+        id: row['id'] as string,
+        name: row['name'] as string,
+        sku: (row['sku'] as string | null) ?? null,
+        barcode: (row['barcode'] as string | null) ?? null,
+        pricePaise: row['price_paise'] as number,
+        mrpPaise: (row['mrp_paise'] as number | null) ?? null,
+        wholesalePricePaise: (row['wholesale_price_paise'] as number | null) ?? null,
+        specialPricePaise: (row['special_price_paise'] as number | null) ?? null,
+        unitCode: row['unit_code'] as string,
+      })),
+    });
+  };
+
+  registerHandler('labels:preview', (request) => ({ html: labelSheet(request) }));
+
+  registerHandler('labels:print', async ({ printerName, ...request }) =>
+    printDocument(labelSheet(request), 'a4', printerName ?? null, false),
+  );
 
   registerHandler('print:previewHtml', ({ saleId, paperSize, isReprint }) => {
     const doc = documentFor(saleId, paperSize, isReprint);

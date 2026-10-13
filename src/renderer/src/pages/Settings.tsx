@@ -6,6 +6,7 @@ import { AuditPanel } from '../components/AuditPanel';
 import { BooksPanel } from '../components/BooksPanel';
 import { UsersPanel } from '../components/UsersPanel';
 import { LoyaltyPanel } from '../components/LoyaltyPanel';
+import { ShiftPanel } from '../components/ShiftPanel';
 import { call } from '../lib/ipc';
 import {
   BUSINESS_CATEGORIES,
@@ -18,7 +19,16 @@ import type { PrinterInfo } from '@shared/ipc-contract';
 
 type PaymentMethod = AppSettings['payment']['methods'][number];
 type Tab =
-  'shop' | 'invoice' | 'receipt' | 'inventory' | 'loyalty' | 'books' | 'users' | 'backup' | 'audit';
+  | 'shop'
+  | 'invoice'
+  | 'receipt'
+  | 'inventory'
+  | 'loyalty'
+  | 'shifts'
+  | 'books'
+  | 'users'
+  | 'backup'
+  | 'audit';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'shop', label: 'Shop profile' },
@@ -26,6 +36,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'receipt', label: 'Receipt & payments' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'loyalty', label: 'Points' },
+  { id: 'shifts', label: 'Drawer' },
   { id: 'books', label: 'Accounts' },
   { id: 'users', label: 'Users' },
   { id: 'backup', label: 'Backup & restore' },
@@ -33,7 +44,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 /** Tabs that act on their own and have nothing for the page's Save button. */
-const SELF_SAVING: Tab[] = ['loyalty', 'books', 'users', 'backup', 'audit'];
+const SELF_SAVING: Tab[] = ['loyalty', 'shifts', 'books', 'users', 'backup', 'audit'];
 
 /**
  * Edits the settings created during setup.
@@ -437,6 +448,8 @@ export function Settings({
         )}
 
         {tab === 'loyalty' && <LoyaltyPanel settings={settings} onSaved={onSaved} />}
+
+        {tab === 'shifts' && <ShiftPanel />}
 
         {tab === 'books' && <BooksPanel />}
 

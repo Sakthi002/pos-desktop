@@ -95,6 +95,17 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   // A correction by hand moves what the shop owes, so it sits with the books.
   'loyalty:adjust': 'books.post',
 
+  'labels:preview': 'product.manage',
+  'labels:print': 'product.manage',
+
+  'counter:account': 'sale.view',
+  'counter:receipts': 'sale.view',
+  'counter:receive': 'sell',
+  'shift:current': 'sell',
+  'shift:recent': 'report.view',
+  'shift:open': 'sell',
+  'shift:close': 'sell',
+
   'customers:create': 'customer.manage',
   'customers:update': 'customer.manage',
   'customers:setActive': 'customer.manage',

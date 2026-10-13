@@ -361,6 +361,55 @@ export class LedgerService {
     });
   }
 
+  /**
+   * Money received against a customer's account: the drawer or the bank goes
+   * up, and what they owe comes down. The party is named on the receivable
+   * line, so their own statement shows it.
+   */
+  postCustomerReceipt(receiptId: string): string | null {
+    if (this.repo.hasVoucher('customer_receipt', receiptId, 'receipt')) return null;
+
+    const receipt = this.db
+      .prepare('SELECT * FROM customer_receipts WHERE id = ?')
+      .get(receiptId) as Record<string, unknown> | undefined;
+    if (!receipt) throw new LedgerError('NOT_FOUND', 'Receipt not found.');
+
+    const amount = receipt['amount_paise'] as number;
+    const money = MONEY_ACCOUNT[receipt['method'] as string] ?? ACCOUNTS.cash;
+    const customerId = receipt['customer_id'] as string;
+    const size = Math.abs(amount);
+    const takenIn = amount > 0;
+
+    const lines: VoucherLine[] = takenIn
+      ? [
+          { accountCode: money, debitPaise: size },
+          {
+            accountCode: ACCOUNTS.receivable,
+            creditPaise: size,
+            partyType: 'customer',
+            partyId: customerId,
+          },
+        ]
+      : [
+          {
+            accountCode: ACCOUNTS.receivable,
+            debitPaise: size,
+            partyType: 'customer',
+            partyId: customerId,
+          },
+          { accountCode: money, creditPaise: size },
+        ];
+
+    return this.post({
+      type: takenIn ? 'receipt' : 'payment',
+      date: receipt['receipt_date'] as string,
+      narration: `${takenIn ? 'Received' : 'Refunded'} by ${receipt['method'] as string}`,
+      referenceType: 'customer_receipt',
+      referenceId: receiptId,
+      lines,
+    });
+  }
+
   // ─── Buying ───────────────────────────────────────────────────────────────
 
   postPurchase(purchaseId: string): string | null {
@@ -627,7 +676,9 @@ export class LedgerService {
                     ? this.postPurchaseCancel(doc.id)
                     : doc.kind === 'purchase_return'
                       ? this.postPurchaseReturn(doc.id)
-                      : this.postSupplierPayment(doc.id);
+                      : doc.kind === 'customer_receipt'
+                        ? this.postCustomerReceipt(doc.id)
+                        : this.postSupplierPayment(doc.id);
         if (voucher) posted += 1;
       }
       return posted;

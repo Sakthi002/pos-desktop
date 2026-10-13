@@ -37,6 +37,7 @@ import { SettingsService } from './settings-service';
 import { LedgerService } from './ledger-service';
 import { LoyaltyService } from './loyalty-service';
 import { BatchService } from './batch-service';
+import { CounterService, CounterError } from './counter-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class SaleError extends Error {
@@ -70,6 +71,7 @@ export class SaleService {
   private readonly ledger: LedgerService;
   private readonly loyalty: LoyaltyService;
   private readonly batches: BatchService;
+  private readonly counter: CounterService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -85,6 +87,7 @@ export class SaleService {
     this.ledger = new LedgerService(db);
     this.loyalty = new LoyaltyService(db);
     this.batches = new BatchService(db);
+    this.counter = new CounterService(db);
   }
 
   /** Customer's state decides CGST+SGST versus IGST; unknown means local. */
@@ -262,12 +265,24 @@ export class SaleService {
             roundTotal: this.settings.tax.roundTotalToRupee,
           });
 
-    // Payments must cover the bill. Cash may exceed it, and the surplus is change.
+    // Payments must cover the bill, unless the shortfall is deliberate and the
+    // customer's account can carry it. Cash may exceed it; the surplus is
+    // change.
     const paid = parsed.payments.reduce((a, p) => a + p.amountPaise, 0);
-    if (paid < bill.totalPaise) {
+    const shortfall = Math.max(0, bill.totalPaise - paid);
+
+    if (shortfall > 0 && !parsed.onCredit) {
       throw new SaleError('UNDERPAID', 'The payments do not cover the bill total.');
     }
-    const overpaid = paid - bill.totalPaise;
+    if (shortfall > 0) {
+      try {
+        this.counter.assertCanOwe(parsed.customerId ?? null, shortfall);
+      } catch (err) {
+        if (err instanceof CounterError) throw new SaleError(err.code, err.message);
+        throw err;
+      }
+    }
+    const overpaid = Math.max(0, paid - bill.totalPaise);
     if (overpaid > 0 && !parsed.payments.some((p) => p.method === 'cash')) {
       throw new SaleError(
         'OVERPAID',
@@ -327,14 +342,14 @@ export class SaleService {
              taxable_paise, cgst_paise, sgst_paise, igst_paise, tax_paise, round_off_paise,
              total_paise, status, notes, idempotency_key,
              loyalty_points_earned, loyalty_points_redeemed, loyalty_discount_paise,
-             created_at, updated_at)
+             price_level, credit_paise, shift_id, created_at, updated_at)
            VALUES (@id, @company_id, @branch_id, @operator_id, @invoice_number, @financial_year,
              @invoice_date, @customer_id, @customer_name, @customer_phone, @customer_gstin, @customer_state_code,
              @tax_mode, @is_interstate, @gross_paise, @item_discount_paise, @cart_discount_paise,
              @taxable_paise, @cgst_paise, @sgst_paise, @igst_paise, @tax_paise, @round_off_paise,
              @total_paise, 'completed', @notes, @idempotency_key,
              @loyalty_points_earned, @loyalty_points_redeemed, @loyalty_discount_paise,
-             @t, @t)`,
+             @price_level, @credit_paise, @shift_id, @t, @t)`,
         )
         .run({
           id: saleId,
@@ -367,6 +382,10 @@ export class SaleService {
           loyalty_points_earned: 0,
           loyalty_points_redeemed: parsed.redeemPoints,
           loyalty_discount_paise: loyaltyDiscount,
+          price_level: parsed.priceLevel,
+          credit_paise: shortfall,
+          // Null when the shop does not open shifts: the drawer is the day.
+          shift_id: this.counter.currentShiftId(),
           t: timestamp,
         });
 
@@ -676,6 +695,8 @@ export class SaleService {
       voidReason: (sale['void_reason'] as string | null) ?? null,
       duplicate: false,
       loyalty: this.loyaltyOf(sale),
+      creditPaise: (sale['credit_paise'] as number) ?? 0,
+      priceLevel: (sale['price_level'] as string) ?? 'retail',
     };
   }
 

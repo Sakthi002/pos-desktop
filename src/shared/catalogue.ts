@@ -52,6 +52,9 @@ export interface Product {
   taxRateBp: number;
   taxInclusive: boolean;
   trackInventory: boolean;
+  /** Null means this level is not offered and retail is charged. */
+  wholesalePricePaise: number | null;
+  specialPricePaise: number | null;
   /** Keeps batches with their own expiry dates. */
   tracksBatches: boolean;
   valuationMethod: ValuationMethod;
@@ -101,6 +104,8 @@ export const productInputSchema = z.object({
   taxInclusive: z.boolean().default(true),
   /** False for a service line that should never move stock. */
   trackInventory: z.boolean().default(true),
+  wholesalePricePaise: z.union([z.number().int().min(0), z.null()]).optional(),
+  specialPricePaise: z.union([z.number().int().min(0), z.null()]).optional(),
   /** Off unless the shop sells something that goes out of date. */
   tracksBatches: z.boolean().default(false),
   valuationMethod: z.enum(VALUATION_METHODS).default('fifo'),

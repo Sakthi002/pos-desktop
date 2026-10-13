@@ -21,6 +21,7 @@ import { ReportsRepository, type Range } from '../db/repositories/reports';
 import { InventoryRepository } from '../db/repositories/inventory';
 import { LedgerService } from './ledger-service';
 import { BatchService } from './batch-service';
+import { CounterService } from './counter-service';
 import { ACCOUNTS } from '@shared/ledger';
 import { now } from '../db/repositories/base';
 import { loadBranchContext } from './branch-context';
@@ -78,14 +79,16 @@ export class ReportService {
   private readonly inventory: InventoryRepository;
   private readonly ledger: LedgerService;
   private readonly batches: BatchService;
+  private readonly counter: CounterService;
 
-  constructor(db: Database) {
+  constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
     if (!ctx) throw new ReportError('SETUP_INCOMPLETE', 'Complete setup first.');
     this.repo = new ReportsRepository(db, ctx.companyId);
     this.inventory = new InventoryRepository(db, ctx.companyId);
     this.ledger = new LedgerService(db);
     this.batches = new BatchService(db);
+    this.counter = new CounterService(db);
   }
 
   run(input: unknown): ReportTable {
@@ -149,6 +152,10 @@ export class ReportService {
         return { ...base, ...this.lowStock() };
       case 'expiry':
         return { ...base, ...this.expiry() };
+      case 'shifts':
+        return { ...base, ...this.shifts(range) };
+      case 'customer-outstanding':
+        return { ...base, ...this.customerOutstanding() };
     }
   }
 
@@ -796,6 +803,105 @@ export class ReportService {
       note:
         'Batches holding stock that expire within 90 days, and any already expired ' +
         '(shown with days left below zero). An expired batch can never be sold.',
+    };
+  }
+
+  /**
+   * Every drawer counted in the range, with what it should have held. The
+   * difference is the column a shopkeeper reads first.
+   */
+  private shifts(range: Range): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const shifts = this.counter
+      .recent(200)
+      .filter(
+        (s) => s.closedAt !== null && s.openedAt >= range.fromIso && s.openedAt <= range.toIso,
+      );
+
+    const rows: ReportRow[] = shifts.map((shift) => ({
+      opened: dateTimeLabel(shift.openedAt),
+      closed: shift.closedAt ? dateTimeLabel(shift.closedAt) : '',
+      who: shift.openedByName ?? '—',
+      invoices: shift.takings.invoices,
+      float: shift.openingFloatPaise,
+      expected: shift.expectedPaise ?? 0,
+      counted: shift.countedPaise ?? 0,
+      variance: shift.variancePaise ?? 0,
+    }));
+
+    const sum = (key: string) => rows.reduce((a, r) => a + ((r[key] as number) ?? 0), 0);
+
+    return {
+      columns: [
+        text('opened', 'Opened'),
+        text('closed', 'Closed'),
+        text('who', 'Opened by'),
+        int('invoices', 'Bills'),
+        money('float', 'Float'),
+        money('expected', 'Expected'),
+        money('counted', 'Counted'),
+        money('variance', 'Difference'),
+      ],
+      rows,
+      totals: {
+        opened: 'Total',
+        closed: '',
+        who: '',
+        invoices: sum('invoices'),
+        float: sum('float'),
+        expected: sum('expected'),
+        counted: sum('counted'),
+        variance: sum('variance'),
+      },
+      note:
+        'Closed shifts only. Expected is the float plus cash taken, less cash refunded ' +
+        'and anything paid out of the drawer. A difference is recorded, never corrected away.',
+    };
+  }
+
+  /** What each customer owes, from the documents rather than a balance. */
+  private customerOutstanding(): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const customers = this.db
+      .prepare(
+        `SELECT DISTINCT c.id, c.name, c.phone, c.credit_limit_paise
+           FROM customers c
+           JOIN sales s ON s.customer_id = c.id
+          WHERE s.credit_paise > 0 AND s.status = 'completed'
+          ORDER BY c.name`,
+      )
+      .all() as { id: string; name: string; phone: string | null; credit_limit_paise: number }[];
+
+    const rows: ReportRow[] = customers
+      .map((customer) => {
+        const account = this.counter.account(customer.id);
+        return {
+          name: customer.name,
+          phone: customer.phone ?? '—',
+          limit: customer.credit_limit_paise,
+          bills: account.bills.filter((b) => b.outstandingPaise > 0).length,
+          outstanding: account.outstandingPaise,
+        };
+      })
+      .filter((row) => row.outstanding !== 0);
+
+    return {
+      columns: [
+        text('name', 'Customer'),
+        text('phone', 'Phone'),
+        money('limit', 'Credit limit'),
+        int('bills', 'Open bills'),
+        money('outstanding', 'Owed'),
+      ],
+      rows,
+      totals: {
+        name: 'Total',
+        phone: '',
+        limit: '',
+        bills: rows.reduce((a, r) => a + (r['bills'] as number), 0),
+        outstanding: rows.reduce((a, r) => a + (r['outstanding'] as number), 0),
+      },
+      note:
+        'Billed on credit, less credit notes, less what has been received. ' +
+        'A customer in credit shows as a negative figure.',
     };
   }
 

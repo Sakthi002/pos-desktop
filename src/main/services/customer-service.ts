@@ -14,6 +14,7 @@ import {
   type CustomerQuery,
   type CustomerSummary,
 } from '@shared/customer';
+import type { PriceLevel } from '@shared/trade';
 import { newId, now, fromDbBool, toDbBool } from '../db/repositories/base';
 
 interface Row {
@@ -26,6 +27,8 @@ interface Row {
   state_code: string | null;
   is_walk_in: number;
   is_active: number;
+  price_level: string;
+  credit_limit_paise: number;
 }
 
 const toCustomer = (r: Row): Customer => ({
@@ -38,6 +41,8 @@ const toCustomer = (r: Row): Customer => ({
   stateCode: r.state_code,
   isWalkIn: fromDbBool(r.is_walk_in),
   isActive: fromDbBool(r.is_active),
+  priceLevel: r.price_level as PriceLevel,
+  creditLimitPaise: r.credit_limit_paise,
 });
 
 const blankToNull = (v: string | null | undefined): string | null => (v?.trim() ? v.trim() : null);
@@ -92,8 +97,8 @@ export class CustomerService {
     this.db
       .prepare(
         `INSERT INTO customers (id, company_id, name, phone, email, address, gstin, state_code,
-           is_walk_in, is_active, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+           is_walk_in, is_active, price_level, credit_limit_paise, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -105,6 +110,8 @@ export class CustomerService {
         blankToNull(parsed.gstin),
         blankToNull(parsed.stateCode),
         toDbBool(true),
+        parsed.priceLevel,
+        parsed.creditLimitPaise,
         t,
         t,
       );
@@ -129,7 +136,7 @@ export class CustomerService {
       .prepare(
         `UPDATE customers
             SET name = ?, phone = ?, email = ?, address = ?, gstin = ?, state_code = ?,
-                updated_at = ?
+                price_level = ?, credit_limit_paise = ?, updated_at = ?
           WHERE id = ? AND company_id = ?`,
       )
       .run(
@@ -139,6 +146,8 @@ export class CustomerService {
         blankToNull(parsed.address),
         blankToNull(parsed.gstin),
         blankToNull(parsed.stateCode),
+        parsed.priceLevel,
+        parsed.creditLimitPaise,
         now(),
         parsed.id,
         this.companyId,
@@ -196,7 +205,16 @@ export class CustomerService {
                 COALESCE((SELECT SUM(s.total_paise) FROM sales s
                            WHERE s.customer_id = c.id AND s.status = 'completed'), 0) AS total_paise,
                 (SELECT MAX(s.invoice_date) FROM sales s
-                  WHERE s.customer_id = c.id AND s.status = 'completed') AS last_purchase_at
+                  WHERE s.customer_id = c.id AND s.status = 'completed') AS last_purchase_at,
+                -- Owed is derived: billed on credit, less credit notes, less
+                -- receipts. Never a stored balance.
+                COALESCE((SELECT SUM(s.credit_paise) FROM sales s
+                           WHERE s.customer_id = c.id AND s.status = 'completed'), 0)
+                - COALESCE((SELECT SUM(r.total_paise) FROM sales_returns r
+                             JOIN sales s2 ON s2.id = r.sale_id
+                            WHERE s2.customer_id = c.id AND s2.credit_paise > 0), 0)
+                - COALESCE((SELECT SUM(cr.amount_paise) FROM customer_receipts cr
+                            WHERE cr.customer_id = c.id), 0) AS outstanding_paise
            FROM customers c ${filter}
           ORDER BY c.is_walk_in DESC, c.name
           LIMIT @limit OFFSET @offset`,
@@ -205,13 +223,19 @@ export class CustomerService {
         ...params,
         limit: query.pageSize,
         offset: (query.page - 1) * query.pageSize,
-      }) as (Row & { invoices: number; total_paise: number; last_purchase_at: string | null })[];
+      }) as (Row & {
+      invoices: number;
+      total_paise: number;
+      last_purchase_at: string | null;
+      outstanding_paise: number;
+    })[];
 
     const items: CustomerSummary[] = rows.map((row) => ({
       ...toCustomer(row),
       invoices: row.invoices,
       totalPaise: row.total_paise,
       lastPurchaseAt: row.last_purchase_at,
+      outstandingPaise: row.outstanding_paise,
     }));
 
     return { items, total, page: query.page, pageSize: query.pageSize };

@@ -21,6 +21,7 @@ export function PaymentDialog({
   settings,
   busy,
   error,
+  credit,
   onConfirm,
   onClose,
 }: {
@@ -28,7 +29,9 @@ export function PaymentDialog({
   settings: AppSettings;
   busy: boolean;
   error: string | null;
-  onConfirm: (payments: PaymentInput[]) => void;
+  /** Present when this customer may leave part of the bill on their account. */
+  credit?: { customerName: string; availablePaise: number | null } | null;
+  onConfirm: (payments: PaymentInput[], onCredit: boolean) => void;
   onClose: () => void;
 }) {
   const methods = settings.payment.methods;
@@ -38,6 +41,7 @@ export function PaymentDialog({
     { method: firstMethod, amount: (totalPaise / 100).toFixed(2), reference: '' },
   ]);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [onCredit, setOnCredit] = useState(false);
 
   const parsedRows = useMemo(
     () => rows.map((r) => ({ ...r, paise: parseRupees(r.amount) })),
@@ -71,9 +75,16 @@ export function PaymentDialog({
       setLocalError('One of the amounts is not a valid figure.');
       return;
     }
-    if (paid < totalPaise) {
+    if (paid < totalPaise && !onCredit) {
       setLocalError(`${formatPaise(outstanding)} still to pay.`);
       return;
+    }
+    if (onCredit && credit?.availablePaise !== null && credit !== null && credit !== undefined) {
+      const available = credit.availablePaise ?? 0;
+      if (outstanding > available) {
+        setLocalError(`${credit.customerName} can take ${formatPaise(available)} more on account.`);
+        return;
+      }
     }
     if (change > 0 && !hasCash) {
       setLocalError('Change can only be given against cash. Reduce the amount.');
@@ -89,6 +100,7 @@ export function PaymentDialog({
           tenderedPaise: r.method === 'cash' ? (r.paise as number) : null,
           reference: r.reference.trim() || null,
         })),
+      onCredit,
     );
   }
 
@@ -103,7 +115,11 @@ export function PaymentDialog({
             Cancel
           </button>
           <button className="btn-primary" onClick={confirm} disabled={busy}>
-            {busy ? 'Saving…' : `Complete sale · ${formatPaise(totalPaise)}`}
+            {busy
+              ? 'Saving…'
+              : onCredit
+                ? `On account · ${formatPaise(totalPaise)}`
+                : `Complete sale · ${formatPaise(totalPaise)}`}
           </button>
         </>
       }
@@ -168,6 +184,27 @@ export function PaymentDialog({
 
       <div className="pay-summary">
         {outstanding > 0 && <p className="outstanding">Still to pay: {formatPaise(outstanding)}</p>}
+
+        {credit && outstanding > 0 && (
+          <label className="check" style={{ marginTop: 10 }}>
+            <input
+              type="checkbox"
+              checked={onCredit}
+              onChange={(e) => {
+                setOnCredit(e.target.checked);
+                setLocalError(null);
+              }}
+            />
+            <span>
+              Put {formatPaise(outstanding)} on account for {credit.customerName}
+              <em>
+                {credit.availablePaise === null
+                  ? 'No limit set on this account.'
+                  : `${formatPaise(credit.availablePaise)} left before their limit.`}
+              </em>
+            </span>
+          </label>
+        )}
         {change > 0 && (
           <p className="change">
             Change due: <strong>{formatPaise(change)}</strong>

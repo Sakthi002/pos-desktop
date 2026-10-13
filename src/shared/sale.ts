@@ -3,6 +3,7 @@
  */
 import { z } from 'zod';
 import { approvalSchema } from './auth';
+import { PRICE_LEVELS } from './trade';
 import type { Bill } from './billing';
 
 export const PAYMENT_METHODS = ['cash', 'upi', 'card', 'bank', 'other'] as const;
@@ -32,7 +33,19 @@ export const saleInputSchema = z.object({
   cartDiscountPaise: z.number().int().min(0).default(0),
   /** Loyalty points the customer is spending on this bill. */
   redeemPoints: z.number().int().min(0).default(0),
-  payments: z.array(paymentInputSchema).min(1, 'Record at least one payment'),
+  /** Which price list this bill was charged at. */
+  priceLevel: z.enum(PRICE_LEVELS).default('retail'),
+  /**
+   * True when the payments deliberately fall short and the rest goes on the
+   * customer's account. Without it an underpaid bill is a mistake, not credit.
+   */
+  onCredit: z.boolean().default(false),
+  /**
+   * May be empty: a bill taken entirely on a customer's account has nothing
+   * to record. An empty list on a bill that is not on credit is caught as an
+   * underpayment, which is what it is.
+   */
+  payments: z.array(paymentInputSchema),
   notes: z.string().trim().max(500).nullable().optional(),
 });
 
@@ -69,6 +82,9 @@ export interface SaleReceipt {
   duplicate: boolean;
   /** Null when the shop does not run points, or the customer has no card. */
   loyalty: SaleLoyalty | null;
+  /** What was left on the customer's account, and the list it was billed at. */
+  creditPaise: number;
+  priceLevel: string;
 }
 
 /** What this bill did to the customer's points, kept with the invoice. */
@@ -86,6 +102,7 @@ export const billPreviewSchema = z.object({
   lines: z.array(saleLineInputSchema),
   cartDiscountPaise: z.number().int().min(0).default(0),
   redeemPoints: z.number().int().min(0).default(0),
+  priceLevel: z.enum(PRICE_LEVELS).default('retail'),
 });
 
 export type BillPreviewInput = z.infer<typeof billPreviewSchema>;

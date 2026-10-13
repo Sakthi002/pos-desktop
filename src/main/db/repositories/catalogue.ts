@@ -33,6 +33,8 @@ interface ProductRow {
   tax_rate_bp: number;
   tax_inclusive: number;
   track_inventory: number;
+  wholesale_price_paise: number | null;
+  special_price_paise: number | null;
   tracks_batches: number;
   valuation_method: string;
   reorder_level_milli: number;
@@ -59,6 +61,8 @@ const toProduct = (row: ProductRow): Product => ({
   taxRateBp: row.tax_rate_bp,
   taxInclusive: fromDbBool(row.tax_inclusive),
   trackInventory: fromDbBool(row.track_inventory),
+  wholesalePricePaise: row.wholesale_price_paise,
+  specialPricePaise: row.special_price_paise,
   tracksBatches: fromDbBool(row.tracks_batches),
   valuationMethod: row.valuation_method as ValuationMethod,
   reorderLevelMilli: row.reorder_level_milli,
@@ -271,10 +275,12 @@ export class CatalogueRepository extends Repository {
         `INSERT INTO products (id, company_id, sku, barcode, name, description, category_id, brand,
            hsn, unit_code, cost_paise, price_paise, mrp_paise, tax_rate_bp, tax_inclusive,
            track_inventory, tracks_batches, valuation_method,
+           wholesale_price_paise, special_price_paise,
            reorder_level_milli, is_active, created_at, updated_at)
          VALUES (@id, @company_id, @sku, @barcode, @name, @description, @category_id, @brand,
            @hsn, @unit_code, @cost_paise, @price_paise, @mrp_paise, @tax_rate_bp, @tax_inclusive,
            @track_inventory, @tracks_batches, @valuation_method,
+           @wholesale_price_paise, @special_price_paise,
            @reorder_level_milli, @is_active, @t, @t)`,
       )
       .run({
@@ -295,6 +301,8 @@ export class CatalogueRepository extends Repository {
         tax_inclusive: toDbBool(input.taxInclusive),
         track_inventory: toDbBool(input.trackInventory),
         tracks_batches: toDbBool(input.tracksBatches),
+        wholesale_price_paise: input.wholesalePricePaise ?? null,
+        special_price_paise: input.specialPricePaise ?? null,
         valuation_method: input.valuationMethod,
         reorder_level_milli: input.reorderLevelMilli,
         is_active: toDbBool(input.isActive),
@@ -311,6 +319,8 @@ export class CatalogueRepository extends Repository {
            cost_paise = @cost_paise, price_paise = @price_paise, mrp_paise = @mrp_paise,
            tax_rate_bp = @tax_rate_bp, tax_inclusive = @tax_inclusive,
            track_inventory = @track_inventory, tracks_batches = @tracks_batches,
+           wholesale_price_paise = @wholesale_price_paise,
+           special_price_paise = @special_price_paise,
            valuation_method = @valuation_method, reorder_level_milli = @reorder_level_milli,
            is_active = @is_active, updated_at = @t
          WHERE id = @id AND company_id = @company_id`,
@@ -333,6 +343,8 @@ export class CatalogueRepository extends Repository {
         tax_inclusive: toDbBool(input.taxInclusive),
         track_inventory: toDbBool(input.trackInventory),
         tracks_batches: toDbBool(input.tracksBatches),
+        wholesale_price_paise: input.wholesalePricePaise ?? null,
+        special_price_paise: input.specialPricePaise ?? null,
         valuation_method: input.valuationMethod,
         reorder_level_milli: input.reorderLevelMilli,
         is_active: toDbBool(input.isActive),

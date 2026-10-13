@@ -9,11 +9,13 @@ import {
   Pencil,
   Trash2,
   ArrowUpDown,
+  Tag,
 } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { ProductForm } from '../components/ProductForm';
 import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { CsvImportDialog } from '../components/CsvImportDialog';
+import { LabelDialog } from '../components/LabelDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Category, Product, ProductQuery, Unit } from '@shared/catalogue';
 import { formatPaise } from '@shared/money';
@@ -50,6 +52,8 @@ export function Products({ settings }: { settings: AppSettings }) {
   const [editing, setEditing] = useState<Product | null | 'new'>(null);
   const [adjusting, setAdjusting] = useState<Product | null>(null);
   const [importing, setImporting] = useState(false);
+  const [labelling, setLabelling] = useState(false);
+
   const [removing, setRemoving] = useState<Product | null>(null);
   const [removeBusy, setRemoveBusy] = useState(false);
 
@@ -137,6 +141,13 @@ export function Products({ settings }: { settings: AppSettings }) {
           </p>
         </div>
         <div className="page-actions">
+          <button
+            className="btn-secondary"
+            onClick={() => setLabelling(true)}
+            disabled={items.length === 0}
+          >
+            <Tag size={15} /> Labels
+          </button>
           <button className="btn-secondary" onClick={() => setImporting(true)}>
             <Upload size={15} /> Import
           </button>
@@ -347,6 +358,8 @@ export function Products({ settings }: { settings: AppSettings }) {
           }}
         />
       )}
+
+      {labelling && <LabelDialog products={items} onClose={() => setLabelling(false)} />}
 
       {importing && (
         <CsvImportDialog

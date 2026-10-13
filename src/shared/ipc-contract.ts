@@ -40,6 +40,15 @@ import {
 import { reportQuerySchema, type ReportTable } from './reports';
 import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
 import { batchInputSchema, batchQuerySchema, type Batch } from './batches';
+import { labelRequestSchema } from './labels';
+import {
+  closeShiftSchema,
+  customerReceiptSchema,
+  openShiftSchema,
+  type CustomerAccount,
+  type CustomerReceipt,
+  type Shift,
+} from './trade';
 import {
   adjustPointsSchema,
   issueCardSchema,
@@ -189,6 +198,19 @@ export const ipcContract = {
   'users:update': updateUserSchema,
   'users:setActive': setUserActiveSchema,
   'users:resetPassword': resetPasswordSchema,
+
+  'labels:preview': labelRequestSchema,
+  'labels:print': labelRequestSchema.extend({
+    printerName: z.string().max(200).nullable().optional(),
+  }),
+
+  'counter:account': z.object({ customerId: z.string().uuid() }),
+  'counter:receipts': z.object({ customerId: z.string().uuid() }),
+  'counter:receive': customerReceiptSchema,
+  'shift:current': z.void(),
+  'shift:recent': z.void(),
+  'shift:open': openShiftSchema,
+  'shift:close': closeShiftSchema,
 
   'batches:list': batchQuerySchema.partial(),
   'batches:save': batchInputSchema,
@@ -411,6 +433,17 @@ export interface IpcResponseMap {
   'users:update': UserSummary;
   'users:setActive': UserSummary;
   'users:resetPassword': UserSummary;
+
+  'labels:preview': { html: string };
+  'labels:print': PrintOutcome;
+
+  'counter:account': CustomerAccount;
+  'counter:receipts': CustomerReceipt[];
+  'counter:receive': CustomerAccount;
+  'shift:current': Shift | null;
+  'shift:recent': Shift[];
+  'shift:open': Shift;
+  'shift:close': Shift;
 
   'batches:list': Batch[];
   'batches:save': Batch;

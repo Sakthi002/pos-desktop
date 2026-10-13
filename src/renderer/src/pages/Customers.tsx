@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, Users, Pencil, Receipt, UserX, UserCheck, Star } from 'lucide-react';
+import { Plus, Search, Users, Pencil, Receipt, UserX, UserCheck, Star, Wallet } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { CustomerForm } from '../components/CustomerForm';
 import { CustomerHistory } from '../components/CustomerHistory';
 import { LoyaltyCardDialog } from '../components/LoyaltyCardDialog';
+import { CustomerAccountDialog } from '../components/CustomerAccountDialog';
 import { formatPaise } from '@shared/money';
 import type { Customer, CustomerQuery, CustomerSummary } from '@shared/customer';
 import type { AppSettings } from '@shared/settings';
@@ -38,6 +39,7 @@ export function Customers({ settings }: { settings: AppSettings }) {
   const [editing, setEditing] = useState<Customer | null | 'new'>(null);
   const [viewing, setViewing] = useState<CustomerSummary | null>(null);
   const [pointsFor, setPointsFor] = useState<CustomerSummary | null>(null);
+  const [accountFor, setAccountFor] = useState<CustomerSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -169,6 +171,15 @@ export function Customers({ settings }: { settings: AppSettings }) {
                       >
                         <Receipt size={15} />
                       </button>
+                      {!c.isWalkIn && (c.creditLimitPaise > 0 || c.outstandingPaise !== 0) && (
+                        <button
+                          className="icon-btn view"
+                          title="Account"
+                          onClick={() => setAccountFor(c)}
+                        >
+                          <Wallet size={15} />
+                        </button>
+                      )}
                       {loyaltyOn && !c.isWalkIn && (
                         <button
                           className="icon-btn print"
@@ -233,6 +244,16 @@ export function Customers({ settings }: { settings: AppSettings }) {
       )}
 
       {viewing && <CustomerHistory customer={viewing} onClose={() => setViewing(null)} />}
+
+      {accountFor && (
+        <CustomerAccountDialog
+          customer={accountFor}
+          onClose={() => {
+            setAccountFor(null);
+            void load();
+          }}
+        />
+      )}
 
       {pointsFor && (
         <LoyaltyCardDialog

@@ -80,6 +80,8 @@ const makeReceipt = (interstate = false): SaleReceipt => {
     voidReason: null,
     duplicate: false,
     loyalty: null,
+    creditPaise: 0,
+    priceLevel: 'retail',
   };
 };
 
