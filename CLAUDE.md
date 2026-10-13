@@ -11,6 +11,7 @@ completed **and verified**.
 | Command               | Purpose                                     |
 | --------------------- | ------------------------------------------- |
 | `npm run dev`         | Electron + Vite with HMR                    |
+| `npm run dev:root`    | The same, for a shell running as root       |
 | `npm run build`       | Typecheck, then build all three processes   |
 | `npm run typecheck`   | `tsc --noEmit` for node and web configs     |
 | `npm run lint`        | ESLint                                      |
