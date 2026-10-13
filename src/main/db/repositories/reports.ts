@@ -118,6 +118,41 @@ export interface ReturnRow {
   restocked_lines: number;
 }
 
+export interface PurchaseReportRow {
+  purchase_number: string;
+  purchase_date: string;
+  supplier_bill_no: string | null;
+  supplier_name: string | null;
+  lines: number;
+  taxable: number;
+  tax: number;
+  total: number;
+  paid: number;
+  returned: number;
+}
+
+export interface PurchaseReturnReportRow {
+  return_number: string;
+  return_date: string;
+  purchase_number: string;
+  supplier_name: string | null;
+  lines: number;
+  taxable: number;
+  tax: number;
+  total: number;
+  settlement: string;
+}
+
+export interface SupplierOwedRow {
+  name: string;
+  phone: string | null;
+  purchased: number;
+  returned: number;
+  paid: number;
+  owed: number;
+  last_purchase_at: string | null;
+}
+
 export interface StockRow {
   name: string;
   sku: string | null;
@@ -391,6 +426,68 @@ export class ReportsRepository extends Repository {
           ORDER BY r.return_date DESC`,
       )
       .all(this.params(range)) as ReturnRow[];
+  }
+
+  /** Bought in the range. A cancelled purchase is not a purchase. */
+  purchases(range: Range): PurchaseReportRow[] {
+    return this.db
+      .prepare(
+        `SELECT p.purchase_number, p.purchase_date, p.supplier_bill_no, p.supplier_name,
+                (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) AS lines,
+                p.taxable_paise AS taxable, p.tax_paise AS tax, p.total_paise AS total,
+                COALESCE((SELECT SUM(sp.amount_paise) FROM supplier_payments sp
+                           WHERE sp.purchase_id = p.id), 0) AS paid,
+                COALESCE((SELECT SUM(r.total_paise) FROM purchase_returns r
+                           WHERE r.purchase_id = p.id), 0) AS returned
+           FROM purchases p
+          WHERE p.company_id = @companyId AND p.status = 'completed'
+            AND p.purchase_date >= @fromIso AND p.purchase_date <= @toIso
+          ORDER BY p.purchase_date DESC`,
+      )
+      .all(this.params(range)) as PurchaseReportRow[];
+  }
+
+  purchaseReturns(range: Range): PurchaseReturnReportRow[] {
+    return this.db
+      .prepare(
+        `SELECT r.return_number, r.return_date, p.purchase_number, s.name AS supplier_name,
+                (SELECT COUNT(*) FROM purchase_return_items ri WHERE ri.return_id = r.id) AS lines,
+                r.taxable_paise AS taxable, r.tax_paise AS tax, r.total_paise AS total,
+                r.settlement
+           FROM purchase_returns r
+           JOIN purchases p ON p.id = r.purchase_id
+           JOIN suppliers s ON s.id = r.supplier_id
+          WHERE r.company_id = @companyId
+            AND r.return_date >= @fromIso AND r.return_date <= @toIso
+          ORDER BY r.return_date DESC`,
+      )
+      .all(this.params(range)) as PurchaseReturnReportRow[];
+  }
+
+  /** What is owed to each supplier right now, worst first. */
+  supplierOutstanding(): SupplierOwedRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT s.name, s.phone,
+                COALESCE((SELECT SUM(p.total_paise) FROM purchases p
+                           WHERE p.supplier_id = s.id AND p.status = 'completed'), 0) AS purchased,
+                COALESCE((SELECT SUM(r.total_paise) FROM purchase_returns r
+                           JOIN purchases p2 ON p2.id = r.purchase_id
+                          WHERE r.supplier_id = s.id AND p2.status = 'completed'), 0) AS returned,
+                COALESCE((SELECT SUM(sp.amount_paise) FROM supplier_payments sp
+                           WHERE sp.supplier_id = s.id), 0) AS paid,
+                (SELECT MAX(p.purchase_date) FROM purchases p
+                  WHERE p.supplier_id = s.id AND p.status = 'completed') AS last_purchase_at
+           FROM suppliers s
+          WHERE s.company_id = @companyId
+          ORDER BY s.name`,
+      )
+      .all({ companyId: this.companyId }) as Omit<SupplierOwedRow, 'owed'>[];
+
+    return rows
+      .map((row) => ({ ...row, owed: row.purchased - row.returned - row.paid }))
+      .filter((row) => row.owed !== 0 || row.purchased !== 0)
+      .sort((a, b) => b.owed - a.owed);
   }
 
   stockOnHand(): StockRow[] {

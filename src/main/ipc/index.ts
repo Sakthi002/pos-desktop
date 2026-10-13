@@ -21,6 +21,8 @@ import { InventoryService, InventoryError } from '../services/inventory-service'
 import { CustomerService, CustomerError } from '../services/customer-service';
 import { ReportService, ReportError } from '../services/report-service';
 import { DashboardService, DashboardError } from '../services/dashboard-service';
+import { SupplierService, SupplierError } from '../services/supplier-service';
+import { PurchaseService, PurchaseError } from '../services/purchase-service';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 
@@ -123,6 +125,57 @@ export function registerIpcHandlers(): void {
   registerHandler('customers:update', (input) => customerCall(() => customers().update(input)));
   registerHandler('customers:setActive', ({ id, isActive }) =>
     customerCall(() => customers().setActive(id, isActive)),
+  );
+
+  // One instance per call: each reads the branch context as it is now.
+  const buying = <T>(
+    work: (services: { suppliers: SupplierService; purchases: PurchaseService }) => T,
+  ): T => {
+    try {
+      const db = getDatabase();
+      return work({ suppliers: new SupplierService(db), purchases: new PurchaseService(db) });
+    } catch (err) {
+      if (err instanceof SupplierError) throw new IpcError(err.code, err.message);
+      if (err instanceof PurchaseError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('suppliers:list', (query) => buying(({ suppliers }) => suppliers.list(query)));
+  registerHandler('suppliers:get', ({ id }) => buying(({ suppliers }) => suppliers.get(id)));
+  registerHandler('suppliers:create', (input) =>
+    buying(({ suppliers }) => suppliers.create(input)),
+  );
+  registerHandler('suppliers:update', (input) =>
+    buying(({ suppliers }) => suppliers.update(input)),
+  );
+  registerHandler('suppliers:setActive', ({ id, isActive }) =>
+    buying(({ suppliers }) => suppliers.setActive(id, isActive)),
+  );
+  registerHandler('suppliers:payments', ({ id }) =>
+    buying(({ suppliers }) => suppliers.payments(id)),
+  );
+
+  registerHandler('purchases:create', (input) =>
+    buying(({ purchases }) => purchases.createPurchase(input)),
+  );
+  registerHandler('purchases:search', (query) =>
+    buying(({ purchases }) => purchases.listPurchases(query)),
+  );
+  registerHandler('purchases:get', ({ id }) =>
+    buying(({ purchases }) => purchases.getPurchase(id)),
+  );
+  registerHandler('purchases:cancel', (input) =>
+    buying(({ purchases }) => purchases.cancelPurchase(input)),
+  );
+  registerHandler('purchases:createReturn', (input) =>
+    buying(({ purchases }) => purchases.createReturn(input)),
+  );
+  registerHandler('purchases:getReturn', ({ id }) =>
+    buying(({ purchases }) => purchases.getReturn(id)),
+  );
+  registerHandler('purchases:payment', (input) =>
+    buying(({ purchases }) => purchases.recordPayment(input)),
   );
 
   registerHandler('dashboard:summary', (query) => {

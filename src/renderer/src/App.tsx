@@ -11,6 +11,8 @@ import { Pos } from './pages/Pos';
 import { Sales } from './pages/Sales';
 import { Inventory } from './pages/Inventory';
 import { Customers } from './pages/Customers';
+import { Purchases } from './pages/Purchases';
+import { Suppliers } from './pages/Suppliers';
 import { Reports } from './pages/Reports';
 import { AppShell, type Route } from './components/AppShell';
 import type { AppInfo, DbStatus } from '@shared/ipc-contract';
@@ -25,6 +27,8 @@ const ROUTES: Route[] = [
   'products',
   'categories',
   'inventory',
+  'purchases',
+  'suppliers',
   'customers',
   'reports',
   'settings',
@@ -140,6 +144,8 @@ export function App() {
       {route === 'products' && <Products settings={settings} />}
       {route === 'categories' && <Categories />}
       {route === 'inventory' && <Inventory />}
+      {route === 'purchases' && <Purchases />}
+      {route === 'suppliers' && <Suppliers />}
       {route === 'customers' && <Customers />}
       {route === 'reports' && <Reports />}
       {route === 'settings' && <Settings settings={settings} onSaved={setSettings} />}

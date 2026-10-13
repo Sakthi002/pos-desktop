@@ -25,6 +25,9 @@ export const REPORT_KINDS = [
   'tax-summary',
   'discount-summary',
   'returns',
+  'purchases',
+  'purchase-returns',
+  'supplier-outstanding',
   'stock-on-hand',
   'stock-movement',
   'low-stock',
@@ -33,7 +36,11 @@ export const REPORT_KINDS = [
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
 /** Reports that describe stock as it is now, so a date range does not apply. */
-export const SNAPSHOT_REPORTS: ReportKind[] = ['stock-on-hand', 'low-stock'];
+export const SNAPSHOT_REPORTS: ReportKind[] = [
+  'stock-on-hand',
+  'low-stock',
+  'supplier-outstanding',
+];
 
 export const reportQuerySchema = z.object({
   kind: z.enum(REPORT_KINDS),
@@ -78,6 +85,9 @@ export const REPORT_LABELS: Record<ReportKind, string> = {
   'tax-summary': 'Tax summary',
   'discount-summary': 'Discounts',
   returns: 'Returns',
+  purchases: 'Purchases',
+  'purchase-returns': 'Purchase returns',
+  'supplier-outstanding': 'Supplier outstanding',
   'stock-on-hand': 'Stock on hand',
   'stock-movement': 'Stock movement',
   'low-stock': 'Low stock',

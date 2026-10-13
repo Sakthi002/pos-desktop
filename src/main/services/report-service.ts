@@ -122,6 +122,12 @@ export class ReportService {
         return { ...base, ...this.discounts(range) };
       case 'returns':
         return { ...base, ...this.returns(range) };
+      case 'purchases':
+        return { ...base, ...this.purchases(range) };
+      case 'purchase-returns':
+        return { ...base, ...this.purchaseReturns(range) };
+      case 'supplier-outstanding':
+        return { ...base, ...this.supplierOutstanding() };
       case 'stock-on-hand':
         return { ...base, ...this.stockOnHand() };
       case 'stock-movement':
@@ -456,6 +462,143 @@ export class ReportService {
         method: '',
       },
       note: 'Restocked counts the lines the operator marked resaleable.',
+    };
+  }
+
+  // ─── Buying ───────────────────────────────────────────────────────────────
+
+  private purchases(range: Range): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const list = this.repo.purchases(range);
+
+    const rows: ReportRow[] = list.map((p) => ({
+      number: p.purchase_number,
+      date: dateTimeLabel(p.purchase_date),
+      supplierBill: p.supplier_bill_no,
+      supplier: p.supplier_name,
+      lines: p.lines,
+      taxable: p.taxable,
+      tax: p.tax,
+      total: p.total,
+      paid: p.paid,
+      owed: p.total - p.returned - p.paid,
+    }));
+
+    const sum = (pick: (p: (typeof list)[number]) => number) =>
+      list.reduce((a, p) => a + pick(p), 0);
+
+    return {
+      columns: [
+        text('number', 'Purchase'),
+        text('date', 'Date'),
+        text('supplierBill', 'Their bill'),
+        text('supplier', 'Supplier'),
+        int('lines', 'Lines'),
+        money('taxable', 'Taxable'),
+        money('tax', 'Tax'),
+        money('total', 'Total'),
+        money('paid', 'Paid'),
+        money('owed', 'Still owed'),
+      ],
+      rows,
+      totals: {
+        number: 'Total',
+        date: '',
+        supplierBill: '',
+        supplier: '',
+        lines: sum((p) => p.lines),
+        taxable: sum((p) => p.taxable),
+        tax: sum((p) => p.tax),
+        total: sum((p) => p.total),
+        paid: sum((p) => p.paid),
+        owed: sum((p) => p.total - p.returned - p.paid),
+      },
+      note: 'Cancelled purchases are excluded. Tax here is input credit, not a cost.',
+    };
+  }
+
+  private purchaseReturns(range: Range): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const list = this.repo.purchaseReturns(range);
+
+    const rows: ReportRow[] = list.map((r) => ({
+      number: r.return_number,
+      date: dateTimeLabel(r.return_date),
+      purchase: r.purchase_number,
+      supplier: r.supplier_name,
+      lines: r.lines,
+      taxable: r.taxable,
+      tax: r.tax,
+      total: r.total,
+      settlement: r.settlement === 'debit_note' ? 'Debit note' : r.settlement.toUpperCase(),
+    }));
+
+    const sum = (pick: (r: (typeof list)[number]) => number) =>
+      list.reduce((a, r) => a + pick(r), 0);
+
+    return {
+      columns: [
+        text('number', 'Debit note'),
+        text('date', 'Date'),
+        text('purchase', 'Against purchase'),
+        text('supplier', 'Supplier'),
+        int('lines', 'Lines'),
+        money('taxable', 'Taxable'),
+        money('tax', 'Tax'),
+        money('total', 'Value'),
+        text('settlement', 'Settled by'),
+      ],
+      rows,
+      totals: {
+        number: 'Total',
+        date: '',
+        purchase: '',
+        supplier: '',
+        lines: sum((r) => r.lines),
+        taxable: sum((r) => r.taxable),
+        tax: sum((r) => r.tax),
+        total: sum((r) => r.total),
+        settlement: '',
+      },
+      note: 'A debit note stays on the supplier account; anything else means money came back.',
+    };
+  }
+
+  private supplierOutstanding(): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const list = this.repo.supplierOutstanding();
+
+    const rows: ReportRow[] = list.map((s) => ({
+      supplier: s.name,
+      phone: s.phone,
+      lastPurchase: s.last_purchase_at ? dateTimeLabel(s.last_purchase_at) : '—',
+      purchased: s.purchased,
+      returned: s.returned,
+      paid: s.paid,
+      owed: s.owed,
+    }));
+
+    const sum = (pick: (s: (typeof list)[number]) => number) =>
+      list.reduce((a, s) => a + pick(s), 0);
+
+    return {
+      columns: [
+        text('supplier', 'Supplier'),
+        text('phone', 'Phone'),
+        text('lastPurchase', 'Last purchase'),
+        money('purchased', 'Purchased'),
+        money('returned', 'Returned'),
+        money('paid', 'Paid'),
+        money('owed', 'Still owed'),
+      ],
+      rows,
+      totals: {
+        supplier: 'Total',
+        phone: '',
+        lastPurchase: '',
+        purchased: sum((s) => s.purchased),
+        returned: sum((s) => s.returned),
+        paid: sum((s) => s.paid),
+        owed: sum((s) => s.owed),
+      },
+      note: 'Everything bought since the shop opened, less returns and payments. A negative figure means the supplier owes us.',
     };
   }
 

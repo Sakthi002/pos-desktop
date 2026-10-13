@@ -5,6 +5,8 @@ import {
   Receipt,
   Package,
   Boxes,
+  PackagePlus,
+  Truck,
   Users,
   BarChart3,
   FolderTree,
@@ -22,6 +24,8 @@ export type Route =
   | 'products'
   | 'categories'
   | 'inventory'
+  | 'purchases'
+  | 'suppliers'
   | 'customers'
   | 'reports'
   | 'settings';
@@ -33,6 +37,8 @@ const NAV: { id: Route; label: string; icon: typeof Package; ready: boolean }[] 
   { id: 'products', label: 'Products', icon: Package, ready: true },
   { id: 'categories', label: 'Categories', icon: FolderTree, ready: true },
   { id: 'inventory', label: 'Inventory', icon: Boxes, ready: true },
+  { id: 'purchases', label: 'Purchases', icon: PackagePlus, ready: true },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck, ready: true },
   { id: 'customers', label: 'Customers', icon: Users, ready: true },
   { id: 'reports', label: 'Reports', icon: BarChart3, ready: true },
   { id: 'settings', label: 'Settings', icon: SettingsIcon, ready: true },

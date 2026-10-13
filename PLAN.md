@@ -286,6 +286,73 @@ are **not** assumed globally unique.
 - [x] Docs: known limitations and unsigned-installer implications
 - [x] Docs: how to collect diagnostics without exposing customer data
 
+### Phase 11 — Suppliers and purchases
+
+- [x] Schema: suppliers, purchases, purchase_items, purchase_returns, purchase_return_items
+- [x] Supplier CRUD, search, deactivate-not-delete
+- [x] Purchase entry: supplier bill number, lines with cost, MRP, discount, GST
+- [x] Stock IN through the movement ledger, never a typed balance
+- [x] Product cost updated from the latest purchase; selling price only when asked
+- [x] Purchase number is a local per-branch sequence, allocated inside the transaction
+- [x] Purchase returns against a purchase, capped at what is still returnable
+- [x] Supplier payments, and what is still owed to each supplier
+- [x] Cancel a purchase with reversal, never a delete
+- [x] Reports: purchases, purchase returns, supplier outstanding
+- [x] Tests for every rule above
+
+### Phase 12 — Double-entry ledger
+
+- [ ] Chart of accounts with groups, seeded on setup, extendable
+- [ ] `ledger_entries`: voucher, date, account, debit, credit, narration, reference
+- [ ] Every document posts a balanced voucher in its own transaction, or rolls back
+- [ ] Postings for cash/card/UPI/credit sales, returns, purchases, purchase returns,
+      payments received and made, and discounts
+- [ ] Trial balance: debits equal credits, proven by test on generated data
+- [ ] Cash book, party ledgers, account statement
+- [ ] Opening balances for cash, customers and suppliers
+- [ ] A voucher is never edited; a correction is a reversing voucher
+
+### Phase 13 — Users, roles and login
+
+- [ ] Password hashing (scrypt), first-run admin, forced change of a seeded password
+- [ ] Login screen, session in the main process, lock on idle
+- [ ] Roles: admin, manager, cashier, with a permission set per role
+- [ ] Permission checks in the IPC layer, not only in the UI
+- [ ] Every document already stores `operator_id`; show who did what in the audit trail
+- [ ] User management: create, deactivate, reset password
+- [ ] Approval for a void or a return above a threshold
+
+### Phase 14 — Loyalty
+
+- [ ] Loyalty cards per customer, with tier, rate and expiry
+- [ ] Points earned on net amount, redeemed against a bill, both as transactions
+- [ ] Redemption capped at balance and at bill value
+- [ ] A sales return reverses the points the sale earned
+- [ ] Balance is derived from the transactions, never only cached
+- [ ] Points liability posted to the ledger
+- [ ] Points shown at the till and on the receipt
+
+### Phase 15 — Batch and expiry
+
+- [ ] Batches per product with batch number, manufacture and expiry dates
+- [ ] Stock movements carry a batch, so a balance is per batch as well as per product
+- [ ] Purchase captures batch and expiry for products that track them
+- [ ] Selling picks the earliest expiry first, and refuses an expired batch
+- [ ] Returns go back to the batch they came from
+- [ ] Expiry report and a dashboard count of what expires within 30 days
+- [ ] Valuation: FIFO, LIFO or average, chosen per product
+
+### Phase 16 — Trade terms and the counter
+
+- [ ] Price levels: retail, wholesale and special, chosen per customer or per bill
+- [ ] Credit sales, customer outstanding and a credit limit that blocks a sale
+- [ ] Payments received against a customer account, allocated to bills
+- [ ] Shift open and close, with a cash drawer count and a variance report
+- [ ] Barcode label printing for shelf and product labels
+- [ ] Multi-branch stock, once the above is settled
+
+---
+
 ---
 
 ## 4. Definition of done for v1.0
@@ -335,7 +402,10 @@ Roughly half the UI is reusable, but each ported page needs its `supabase.from()
 replaced with IPC service calls, money converted to integer paise, and multi-tenant
 `company_id` scoping removed. The entire backend is new.
 
-**Estimate:** 6–8 weeks full-time for v1.0 as scoped above.
+**Estimate:** 6–8 weeks full-time for v1.0 as scoped above. Phases 11 to 16 are the
+functional specification of 13 October 2026 — purchases, a double-entry ledger, users
+and roles, loyalty, batch and expiry, and trade terms — and are a second release of
+comparable size, not a tail of small additions.
 
 ---
 
@@ -370,6 +440,7 @@ replaced with IPC service calls, money converted to integer paise, and multi-ten
 | 2026-10-12 | 2     | Settings and first-run wizard complete. Zod-validated settings in seven sections, 5-step wizard, Settings page with four tabs, logo picker copying into userData. Setup creates company, branch, operator, walk-in customer and both invoice sequences in one transaction. 57 tests. Currency is fixed to INR (the only one supported in v1); timezone defaults to Asia/Kolkata — both shown on the review step.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 2026-10-12 | 3     | Catalogue complete. Money as integer paise and quantity as integer thousandths, both parsed from strings to avoid float error. Products, categories, units, search/filter/sort/pagination, duplicate SKU and barcode detection, stock adjustment with mandatory reason, CSV import with per-row errors and CSV export that re-imports cleanly. 137 tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 2026-10-12 | 4     | Billing engine complete. Single calculation service in `src/shared/billing.ts`, rules documented in `docs/calculations.md`. 32 calculation tests written before any UI; 22 checkout tests. Atomic sale: header, lines, payments and stock movements in one transaction, invoice number allocated inside it so a failure burns no number. Idempotency key prevents double-charging. POS screen with barcode entry, price override, split payments, change, hold/resume and F2/F4/F8. 191 tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-10-13 | 11    | Suppliers and purchases. Migration 006 adds suppliers, purchases, purchase items, purchase returns, their items, supplier payments and a numbering table of our own — the invoice sequence is fixed to documents we issue. A supplier's bill runs through the same calculation engine the till uses, so tax, discounts and rounding behave identically in both directions; GST is added on top by default, because that is how a supplier bills. Stock arrives as a movement carrying its cost, the product's cost price follows the latest bill excluding reclaimable tax, and the selling price only moves when the operator ticks it. Returns to a supplier are capped at what is left on the line and settle as a debit note or as money back; cancelling a bill reverses exactly the stock it brought in and is refused once money or goods have moved. What a supplier is owed is derived from the documents, never stored. Three reports and 36 tests. Screens: purchases, suppliers, and a bill with its return and payment.                                                                                                                                                                                                                              |
 | 2026-10-13 | 10d   | Cleared every build warning, and one of them was real. The Linux desktop entry hardcoded `StartupWMClass: Universal POS` while the running window reports `pos-desktop`, so a desktop environment could not tie the window to the launcher — checked with `xprop`, not assumed. Dropping the override and setting `desktopName` in package.json makes both read `pos-desktop`. The other two were noise: zod 4's `@__PURE__` annotations sit where Rollup cannot attach them, now filtered by code and path rather than silenced wholesale, and `@electron/rebuild` was a second copy of what electron-builder already bundles, so `npm run rebuild` is now `electron-builder install-app-deps` and the dependency is gone. A packaging run prints no warnings at all.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 2026-10-13 | 10c   | Dashboard. The sidebar had carried a disabled "Dashboard — soon" item since Phase 0, which is not something to ship. It is now a real screen: today's takings net of returns, the last seven days, the average bill, what each payment method has taken net of change given, the five products closest to their reorder level, and the last ten bills with the voided ones greyed. It composes the repositories the reports already use rather than adding a second definition of a day's takings — with a test asserting it reports the same net figure as the sales summary report for the same day. 345 tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 2026-10-13 | 10b   | Ubuntu packaging. AppImage and `.deb` built with an icon, a desktop entry and Electron's runtime dependencies declared. The package was installed on a clean home directory and started into the setup wizard, creating its database at `~/.config/pos-desktop` with all five migrations applied; then 0.1.1 was installed over 0.1.0 and the shop, its sale and the stock ledger were all still there, with the app going straight to the till rather than the wizard. The AppImage runs from the same data folder, so a shop can move between the two. The packaged build now ships a trimmed menu — Electron's default offered Reload and Toggle Developer Tools to a cashier. README and `docs/operations.md` cover installing, upgrading and removing on Ubuntu, and that an unsigned local `.deb` installs with no warning at all, which is its own risk. Version 0.1.1. Windows packaging is still unbuilt.                                                                                                                                                                                                                                                                                                                                                |

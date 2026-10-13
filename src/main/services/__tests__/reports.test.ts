@@ -8,6 +8,8 @@ import { CustomerService } from '../customer-service';
 import { SaleService } from '../sale-service';
 import { ReturnService } from '../return-service';
 import { ReportService, ReportError } from '../report-service';
+import { SupplierService } from '../supplier-service';
+import { PurchaseService } from '../purchase-service';
 import { defaultSettings } from '@shared/settings';
 import type { ReportRow, ReportTable } from '@shared/reports';
 
@@ -355,6 +357,82 @@ describe('returns report', () => {
   });
 });
 
+describe('buying reports', () => {
+  const buy = () => {
+    const suppliers = new SupplierService(db);
+    const purchases = new PurchaseService(db);
+    const supplier = suppliers.create({
+      name: 'Chennai Wholesale',
+      stateCode: '33',
+      creditLimitPaise: 0,
+    });
+    const purchase = purchases.createPurchase({
+      idempotencyKey: randomUUID(),
+      supplierId: supplier.id,
+      supplierBillNo: 'CW/889',
+      taxMode: 'exclusive',
+      lines: [{ productId: riceId, quantityMilli: 10000, unitCostPaise: 7000 }],
+      billDiscountPaise: 0,
+      payment: { method: 'cash', amountPaise: 20000 },
+    });
+    return { suppliers, purchases, supplier, purchase };
+  };
+
+  it('lists what was bought, with what is still owed on each bill', () => {
+    const { purchase } = buy();
+
+    const table = reports.run({ kind: 'purchases', ...EVERYTHING });
+    expect(cell(table, 0, 'number')).toBe(purchase.purchaseNumber);
+    expect(cell(table, 0, 'supplierBill')).toBe('CW/889');
+    expect(cell(table, 0, 'total')).toBe(73500);
+    expect(cell(table, 0, 'paid')).toBe(20000);
+    expect(cell(table, 0, 'owed')).toBe(53500);
+    expect(table.totals?.['total']).toBe(73500);
+  });
+
+  it('leaves a cancelled purchase out', () => {
+    const { purchases, purchase } = buy();
+    // A paid bill cannot be cancelled, so this one is bought on credit.
+    const credit = purchases.createPurchase({
+      idempotencyKey: randomUUID(),
+      supplierId: purchase.supplierId,
+      taxMode: 'exclusive',
+      lines: [{ productId: riceId, quantityMilli: 1000, unitCostPaise: 7000 }],
+      billDiscountPaise: 0,
+    });
+    purchases.cancelPurchase({ id: credit.id, reason: 'Entered twice' });
+
+    expect(reports.run({ kind: 'purchases', ...EVERYTHING }).rows).toHaveLength(1);
+  });
+
+  it('lists debit notes and how they were settled', () => {
+    const { purchases, purchase } = buy();
+    purchases.createReturn({
+      idempotencyKey: randomUUID(),
+      purchaseId: purchase.id,
+      reason: 'Two bags torn',
+      settlement: 'debit_note',
+      lines: [{ purchaseItemId: purchase.lines[0]!.id, quantityMilli: 2000 }],
+    });
+
+    const table = reports.run({ kind: 'purchase-returns', ...EVERYTHING });
+    expect(cell(table, 0, 'purchase')).toBe(purchase.purchaseNumber);
+    expect(cell(table, 0, 'settlement')).toBe('Debit note');
+    expect(cell(table, 0, 'total')).toBe(14700);
+  });
+
+  it('shows what each supplier is still owed, as a snapshot', () => {
+    buy();
+
+    const table = reports.run({ kind: 'supplier-outstanding' });
+    expect(cell(table, 0, 'supplier')).toBe('Chennai Wholesale');
+    expect(cell(table, 0, 'purchased')).toBe(73500);
+    expect(cell(table, 0, 'paid')).toBe(20000);
+    expect(cell(table, 0, 'owed')).toBe(53500);
+    expect(table.subtitle).toMatch(/^As at/);
+  });
+});
+
 describe('stock reports', () => {
   it('values stock at cost and at retail', () => {
     const table = reports.run({ kind: 'stock-on-hand' });
@@ -399,6 +477,9 @@ describe('every report', () => {
       'tax-summary',
       'discount-summary',
       'returns',
+      'purchases',
+      'purchase-returns',
+      'supplier-outstanding',
       'stock-on-hand',
       'stock-movement',
       'low-stock',

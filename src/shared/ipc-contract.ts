@@ -40,6 +40,22 @@ import {
 import { reportQuerySchema, type ReportTable } from './reports';
 import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
 import {
+  cancelPurchaseSchema,
+  purchaseInputSchema,
+  purchaseQuerySchema,
+  purchaseReturnInputSchema,
+  supplierInputSchema,
+  supplierPaymentSchema,
+  supplierQuerySchema,
+  supplierUpdateSchema,
+  type PurchasePage,
+  type PurchaseReceipt,
+  type PurchaseReturnReceipt,
+  type Supplier,
+  type SupplierPage,
+  type SupplierPayment,
+} from './purchasing';
+import {
   backupRunSchema,
   restoreSchema,
   type BackupFile,
@@ -116,6 +132,21 @@ export const ipcContract = {
 
   'reports:run': reportQuerySchema,
   'dashboard:summary': dashboardQuerySchema,
+
+  'suppliers:list': supplierQuerySchema.partial(),
+  'suppliers:get': z.object({ id: z.string().uuid() }),
+  'suppliers:create': supplierInputSchema,
+  'suppliers:update': supplierUpdateSchema,
+  'suppliers:setActive': z.object({ id: z.string().uuid(), isActive: z.boolean() }),
+  'suppliers:payments': z.object({ id: z.string().uuid() }),
+
+  'purchases:create': purchaseInputSchema,
+  'purchases:search': purchaseQuerySchema.partial(),
+  'purchases:get': z.object({ id: z.string().uuid() }),
+  'purchases:cancel': cancelPurchaseSchema,
+  'purchases:createReturn': purchaseReturnInputSchema,
+  'purchases:getReturn': z.object({ id: z.string().uuid() }),
+  'purchases:payment': supplierPaymentSchema,
 
   'backup:run': backupRunSchema,
   'backup:list': z.void(),
@@ -289,6 +320,19 @@ export interface IpcResponseMap {
   'inventory:lowStock': LowStockItem[];
   'reports:run': ReportTable;
   'dashboard:summary': DashboardSummary;
+  'suppliers:list': SupplierPage;
+  'suppliers:get': Supplier | null;
+  'suppliers:create': Supplier;
+  'suppliers:update': Supplier;
+  'suppliers:setActive': Supplier;
+  'suppliers:payments': SupplierPayment[];
+  'purchases:create': PurchaseReceipt;
+  'purchases:search': PurchasePage;
+  'purchases:get': PurchaseReceipt;
+  'purchases:cancel': PurchaseReceipt;
+  'purchases:createReturn': PurchaseReturnReceipt;
+  'purchases:getReturn': PurchaseReturnReceipt;
+  'purchases:payment': { id: string; outstandingPaise: number };
   'backup:run': BackupResult;
   'backup:list': BackupFile[];
   'backup:inspect': BackupInspection;
