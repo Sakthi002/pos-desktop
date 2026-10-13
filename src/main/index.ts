@@ -18,13 +18,14 @@ let stopBackupScheduler: (() => void) | null = null;
 /**
  * Content Security Policy.
  *
- * Dev needs 'unsafe-inline' for styles and a websocket for HMR; production gets
- * neither. Nothing may be loaded from the network in either mode.
+ * Dev needs 'unsafe-inline' for styles and for the script Vite injects to set
+ * up hot reloading, plus a websocket to talk to its server. Production gets
+ * none of the three. Nothing may be loaded from the network in either mode.
  */
 function contentSecurityPolicy(): string {
   const directives = [
     "default-src 'self'",
-    "script-src 'self'",
+    isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'",
     isDev ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
     "img-src 'self' data:",
     "font-src 'self' data:",
