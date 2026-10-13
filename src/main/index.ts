@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { app, BrowserWindow, shell, session } from 'electron';
+import { app, BrowserWindow, Menu, shell, session } from 'electron';
 import { registerIpcHandlers } from './ipc';
 import {
   openDatabase,
@@ -35,6 +35,39 @@ function contentSecurityPolicy(): string {
     "form-action 'none'",
   ];
   return directives.join('; ');
+}
+
+/**
+ * The menu a shop sees.
+ *
+ * Electron's default menu offers Reload and Toggle Developer Tools, which are
+ * one keystroke away from a cashier wondering why the till went blank. Only
+ * the editing roles are kept, because those are what guarantee Ctrl+C and
+ * Ctrl+V inside the bill. The full menu stays in development.
+ */
+function installApplicationMenu(): void {
+  if (isDev) return;
+
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' },
+        ],
+      },
+      {
+        label: 'Window',
+        submenu: [{ role: 'minimize' }, { role: 'togglefullscreen' }, { role: 'quit' }],
+      },
+    ]),
+  );
 }
 
 function createWindow(): BrowserWindow {
@@ -129,6 +162,7 @@ app.whenReady().then(() => {
 
   openDatabase();
   registerIpcHandlers();
+  installApplicationMenu();
   createWindow();
 
   stopBackupScheduler = startBackupScheduler({

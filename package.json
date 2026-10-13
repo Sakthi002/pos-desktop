@@ -1,6 +1,6 @@
 {
   "name": "pos-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Universal POS — offline-first desktop billing software",
   "author": "Vinuva",
   "license": "UNLICENSED",
@@ -17,6 +17,7 @@
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-builder install-app-deps",
     "package:win": "npm run build && electron-builder --win --publish never",
+    "package:linux": "npm run build && electron-builder --linux --publish never",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -15,10 +15,47 @@ files:
 asarUnpack:
   - '**/node_modules/better-sqlite3/**'
 
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  icon: build/icon.png
+  category: Office
+  synopsis: Offline-first billing and point of sale for retail shops
+  # Becomes the desktop entry's Comment, so it has to read as one line in a menu.
+  description: Offline billing, stock and reports for a single shop. No internet needed.
+  desktop:
+    entry:
+      Name: Universal POS
+      Comment: Offline billing and point of sale
+      Keywords: pos;billing;invoice;shop;retail;gst;
+      StartupWMClass: Universal POS
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # Placeholder: set a real address before shipping packages to anyone.
+  maintainer: Vinuva <support@vinuva.in>
+
+deb:
+  priority: optional
+  # better-sqlite3 is prebuilt and bundled; these are Electron's own runtime
+  # needs on a plain Ubuntu desktop.
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+
 win:
   target:
     - target: nsis
       arch: [x64]
+  icon: build/icon.png
   artifactName: ${productName}-${version}-setup.${ext}
 
 nsis:

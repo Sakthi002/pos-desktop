@@ -88,28 +88,53 @@ If a developer needs more, the app's own logs appear in the terminal only when
 it is run from a terminal (`npm run dev`); a packaged build writes none, by
 design — nothing is collected, and nothing is sent anywhere.
 
-## Updating
+## Installing and updating on Ubuntu
 
-Install the new version over the old one. The database, the logo and the
-settings live outside the installation folder and are left alone; the app runs
-any new migrations on first start, which is forward-only and does not touch
-existing rows.
+```bash
+sudo apt install ./Universal\ POS-0.1.1-amd64.deb     # install, or upgrade in place
+sudo apt remove pos-desktop                           # remove the app, keep the data
+```
+
+The app appears in the applications menu as **Universal POS**. A newer `.deb`
+installed over an older one keeps the database, the settings and the logo —
+they live in `~/.config/pos-desktop`, not in `/opt`. Removing the package does
+not delete that folder either; to erase a shop's data you have to delete it
+yourself, deliberately.
+
+The portable AppImage needs no installation:
+
+```bash
+chmod +x Universal\ POS-0.1.1-x86_64.AppImage
+./Universal\ POS-0.1.1-x86_64.AppImage
+```
+
+It uses the same data folder as the installed package, so a shop can try one
+and move to the other without losing anything. On a desktop without FUSE, add
+`--appimage-extract-and-run`.
+
+Ubuntu packages are not served from a repository, so **nothing updates itself**.
+Updating is a deliberate act: download the new package and install it over the
+old one. The app runs any new migrations on first start; they are forward-only
+and do not rewrite existing rows.
 
 **Take a backup before updating.** Not because an update is expected to lose
 anything, but because the five minutes it costs is the cheapest insurance in
 the shop.
 
-## The installer is not signed
+## The packages are not signed
 
-v1 ships an unsigned NSIS installer. That has consequences a shop should be
-told about rather than discover:
+Neither the Ubuntu packages nor the planned Windows installer are signed. That
+has consequences a shop should be told about rather than discover:
 
-- Windows SmartScreen will show "Windows protected your PC" on first run. The
-  installer runs only after **More info → Run anyway**.
-- Some antivirus products quarantine unsigned installers without asking.
-- Nothing in Windows can tell the shop the file really came from us. An
-  installer downloaded from anywhere other than the agreed channel should not
-  be trusted.
+- On Windows, SmartScreen will show "Windows protected your PC" on first run.
+  The installer runs only after **More info → Run anyway**, and some antivirus
+  products quarantine unsigned installers without asking.
+- On Ubuntu, nothing will warn — which is its own risk. `apt` installs a local
+  `.deb` without question, so the shop's only protection is where the file came
+  from.
+- In both cases nothing in the operating system can confirm the file really
+  came from us. A package downloaded from anywhere other than the agreed
+  channel should not be installed.
 
 Code signing requires a certificate issued to a registered business, and is a
 decision about cost, not about engineering.
@@ -120,5 +145,7 @@ decision about cost, not about engineering.
 - No cloud, no sync, no remote access. Data is on that machine and nowhere else.
 - Printing is **not verified on real thermal hardware** yet. Run a test page
   from Settings before relying on silent printing.
+- The Windows build has never been produced or installed. Ubuntu is the first
+  supported platform.
 - Anyone with administrator access to the computer can read the database. The
   file is not encrypted.

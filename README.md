@@ -11,12 +11,13 @@ Suitable for grocery and general stores, supermarkets, textile and clothing
 shops, hardware and electrical, electronics and stationery. Pharmacies are out
 of scope for v1, because they need batch and expiry tracking.
 
-> **Status: feature-complete for v1, not yet released.** Setup, catalogue,
-> billing, receipts, sales history, returns, inventory, customers, reports,
-> backup and restore all work and are covered by tests. Still open: the Windows
-> installer has never been built or installed on a real Windows machine, and
-> printing has **not** been verified on real thermal hardware. See
-> [PLAN.md](PLAN.md) for the checklist.
+> **Status: feature-complete for v1; shipping on Ubuntu first.** Setup,
+> catalogue, billing, receipts, sales history, returns, inventory, customers,
+> reports, backup and restore all work and are covered by tests. The Linux
+> packages are built, installed and upgraded in place with the shop's data
+> intact. Still open: the Windows installer has never been built, and printing
+> has **not** been verified on real thermal hardware. See [PLAN.md](PLAN.md)
+> for the checklist.
 
 ## What it does
 
@@ -80,19 +81,44 @@ invoice numbering and receipt size. Nothing is sent anywhere.
 After changing the Electron or Node version, run `npm run rebuild` or
 `better-sqlite3` will fail to load with an ABI mismatch.
 
+## Installing on Ubuntu
+
+Download the `.deb` and install it:
+
+```bash
+sudo apt install ./Universal\ POS-0.1.1-amd64.deb
+```
+
+It appears in the applications menu as **Universal POS**. Upgrading means
+installing the newer `.deb` over it; the shop's data is untouched. Removing the
+package (`sudo apt remove pos-desktop`) leaves the database in place.
+
+There is also a portable `.AppImage` that needs no installation:
+
+```bash
+chmod +x Universal\ POS-0.1.1-x86_64.AppImage
+./Universal\ POS-0.1.1-x86_64.AppImage
+```
+
+Both use the same data folder, so a shop can try the AppImage and install the
+package later without losing anything.
+
 ## Packaging a release
 
 ```bash
-npm run package:win      # NSIS installer into release/
+npm run package:linux    # AppImage + .deb into release/
+npm run package:win      # NSIS installer into release/ (needs Windows or Wine)
 ```
 
-Needs a Windows machine (or Wine) — the installer has not been produced or
-tested yet. The application id is `in.vinuva.pos` and must never change: it is
-what ties an installation to its data folder. `deleteAppDataOnUninstall` stays
+The Linux artifacts are built and tested. The Windows installer has never been
+produced on this machine.
+
+The application id is `in.vinuva.pos` and must never change: it is what ties an
+installation to its data folder. On Windows, `deleteAppDataOnUninstall` stays
 `false`, so uninstalling never takes a shop's database with it.
 
-The installer is **unsigned**. See
-[docs/operations.md](docs/operations.md#the-installer-is-not-signed) for what
+Neither package is signed. See
+[docs/operations.md](docs/operations.md#the-packages-are-not-signed) for what
 that means for the shop.
 
 ## Where your data lives
@@ -105,6 +131,9 @@ directory, so updating the application cannot overwrite a shop's data.
 | Windows  | `%APPDATA%\pos-desktop\pos.db`                     |
 | Linux    | `~/.config/pos-desktop/pos.db`                     |
 | macOS    | `~/Library/Application Support/pos-desktop/pos.db` |
+
+The packaged Linux build writes to exactly that path — verified by installing
+the `.deb` on a clean home directory.
 
 Uploaded logos sit alongside it under `assets/`, and copies taken automatically
 before a restore under `pre-restore/`.
@@ -150,10 +179,11 @@ killed mid-write.
 
 ## Known limitations
 
-- **The Windows installer has not been built or tested.** Everything below the
-  application layer — install, upgrade, uninstall — is unproven.
-- **The installer will be unsigned.** Windows SmartScreen will warn on first
-  run; see [docs/operations.md](docs/operations.md#the-installer-is-not-signed).
+- **The Windows installer has not been built or tested.** Ubuntu is the first
+  target; on Windows, everything below the application layer — install,
+  upgrade, uninstall — is unproven.
+- **The packages are unsigned.** On Windows, SmartScreen will warn on first
+  run; see [docs/operations.md](docs/operations.md#the-packages-are-not-signed).
 - **Printing is unverified on real hardware.** Silent printing is off by
   default and is not supported by every printer or driver. Run a test page from
   Settings before relying on it.
