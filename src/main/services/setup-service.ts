@@ -149,7 +149,13 @@ export class SetupService {
           );
       }
 
-      this.settings.replaceAll(settings);
+      // A shop that gave no GSTIN is not registered, and should not be asked
+      // for tax rates or made to print a tax invoice. It can tick the box in
+      // Settings on the day that changes.
+      this.settings.replaceAll({
+        ...settings,
+        tax: { ...settings.tax, registered: Boolean(settings.shop.gstin) },
+      });
       this.settings.markSetupComplete();
 
       this.db

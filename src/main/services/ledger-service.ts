@@ -419,12 +419,18 @@ export class LedgerService {
       Record<string, unknown> | undefined;
     if (!purchase) throw new LedgerError('NOT_FOUND', 'Purchase not found.');
 
+    // A registered shop can reclaim the tax it paid, so it is an asset. One
+    // that is not registered cannot, so the same money is simply part of what
+    // the goods cost.
+    const reclaimable = this.settings.tax.registered;
+    const taxable = purchase['taxable_paise'] as number;
+    const tax = purchase['tax_paise'] as number;
+
     const lines: VoucherLine[] = [
-      { accountCode: ACCOUNTS.purchases, debitPaise: purchase['taxable_paise'] as number },
+      { accountCode: ACCOUNTS.purchases, debitPaise: reclaimable ? taxable : taxable + tax },
     ];
-    if ((purchase['tax_paise'] as number) > 0) {
-      // Input credit: tax paid on a purchase is recoverable, not a cost.
-      lines.push({ accountCode: ACCOUNTS.gstInput, debitPaise: purchase['tax_paise'] as number });
+    if (reclaimable && tax > 0) {
+      lines.push({ accountCode: ACCOUNTS.gstInput, debitPaise: tax });
     }
     lines.push(...this.roundOffLine(purchase['round_off_paise'] as number, false));
     lines.push({
@@ -458,9 +464,14 @@ export class LedgerService {
         partyType: 'supplier',
         partyId: purchase['supplier_id'] as string,
       },
-      { accountCode: ACCOUNTS.purchases, creditPaise: purchase['taxable_paise'] as number },
+      {
+        accountCode: ACCOUNTS.purchases,
+        creditPaise: this.settings.tax.registered
+          ? (purchase['taxable_paise'] as number)
+          : (purchase['taxable_paise'] as number) + (purchase['tax_paise'] as number),
+      },
     ];
-    if ((purchase['tax_paise'] as number) > 0) {
+    if (this.settings.tax.registered && (purchase['tax_paise'] as number) > 0) {
       lines.push({ accountCode: ACCOUNTS.gstInput, creditPaise: purchase['tax_paise'] as number });
     }
     lines.push(...this.roundOffLine(purchase['round_off_paise'] as number, true));
@@ -489,9 +500,14 @@ export class LedgerService {
         partyType: 'supplier',
         partyId: credit['supplier_id'] as string,
       },
-      { accountCode: ACCOUNTS.purchaseReturn, creditPaise: credit['taxable_paise'] as number },
+      {
+        accountCode: ACCOUNTS.purchaseReturn,
+        creditPaise: this.settings.tax.registered
+          ? (credit['taxable_paise'] as number)
+          : (credit['taxable_paise'] as number) + (credit['tax_paise'] as number),
+      },
     ];
-    if ((credit['tax_paise'] as number) > 0) {
+    if (this.settings.tax.registered && (credit['tax_paise'] as number) > 0) {
       lines.push({ accountCode: ACCOUNTS.gstInput, creditPaise: credit['tax_paise'] as number });
     }
     lines.push(...this.roundOffLine(credit['round_off_paise'] as number, true));

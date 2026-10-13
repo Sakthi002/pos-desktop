@@ -536,7 +536,10 @@ export function Pos({ settings }: { settings: AppSettings }) {
             </span>
             <span className="who">
               <strong>{customer?.name ?? 'Walk-in Customer'}</strong>
-              <span>{customer?.gstin ?? 'No GST details on this bill'}</span>
+              <span>
+                {customer?.gstin ??
+                  (settings.tax.registered ? 'No GST details on this bill' : 'Walk-in sale')}
+              </span>
             </span>
             <span className="change-link">Change</span>
           </button>
@@ -622,8 +625,9 @@ export function Pos({ settings }: { settings: AppSettings }) {
                     <span className="line-what">
                       <strong>{l.product.name}</strong>
                       <span>
-                        {formatPaise(l.unitPricePaise)} each · GST{' '}
-                        {(l.product.taxRateBp / 100).toFixed(0)}%
+                        {formatPaise(l.unitPricePaise)} each
+                        {settings.tax.registered &&
+                          ` · GST ${(l.product.taxRateBp / 100).toFixed(0)}%`}
                         {l.discountPaise > 0 && ` · −${formatPaise(l.discountPaise)}`}
                       </span>
                     </span>
@@ -734,7 +738,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
         <div className="bill-foot">
           <div className="totals">
             <div className="t-row">
-              <span>Taxable value</span>
+              <span>{settings.tax.registered ? 'Taxable value' : 'Value'}</span>
               <span>{formatPaise(bill?.taxablePaise ?? 0)}</span>
             </div>
 

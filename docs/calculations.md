@@ -5,6 +5,29 @@ tax, discount and rounding are computed — the POS screen, the stored sale and
 any receipt or PDF call the same function, so a total cannot differ between
 what the customer was shown, what was saved, and what was printed.
 
+## When the shop is not registered for GST
+
+A shop below the registration threshold ticks **Settings → Invoicing & tax →
+this shop is registered for GST** off, and three things follow.
+
+- **Nothing is charged.** Every line is billed at a zero rate, whatever the
+  product says. The rates stay on the products, so registering later is one
+  tick rather than a day of editing.
+- **Nothing is printed.** The receipt is a receipt, not a tax invoice; there
+  are no CGST/SGST/IGST rows, no rate column, and the till stops naming a rate
+  under each line.
+- **Tax paid on a purchase is a cost, not an asset.** An unregistered shop
+  cannot reclaim it, so the tax on a supplier's bill goes into Purchases along
+  with the goods, and the product's cost price is what was actually paid. A
+  registered shop keeps it in GST input credit, where it can be set against
+  what is owed.
+
+What a supplier charged does not change either way: their bill is their bill,
+and the total paid is the same.
+
+Invoices already issued keep their own snapshot. Ticking the box does not
+rewrite history in either direction.
+
 ## Units
 
 | Suffix   | Meaning                       | Example           |

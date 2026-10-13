@@ -140,7 +140,7 @@ function shopHeaderLines(settings: AppSettings): string[] {
 function renderThermal(input: ReceiptRenderInput): string {
   const { receipt, settings, paperSize } = input;
   const bill = receipt.bill;
-  const isTaxInvoice = Boolean(settings.shop.gstin);
+  const isTaxInvoice = settings.tax.registered && Boolean(settings.shop.gstin);
   // A voided invoice can still be printed — for the customer, for the file —
   // but it must never read as a document anyone can claim against.
   const isVoided = receipt.status === 'voided';
@@ -226,7 +226,7 @@ function renderThermal(input: ReceiptRenderInput): string {
 function renderA4(input: ReceiptRenderInput): string {
   const { receipt, settings } = input;
   const bill = receipt.bill;
-  const isTaxInvoice = Boolean(settings.shop.gstin);
+  const isTaxInvoice = settings.tax.registered && Boolean(settings.shop.gstin);
   const isVoided = receipt.status === 'voided';
   const interstate = bill.isInterstate;
 
@@ -337,12 +337,14 @@ function renderA4(input: ReceiptRenderInput): string {
              <tr><td>Less discount</td><td class="num">-${formatPaise(bill.itemDiscountPaise + bill.cartDiscountPaise, false)}</td></tr>`
           : ''
       }
-      <tr><td>Taxable value</td><td class="num">${formatPaise(bill.taxablePaise, false)}</td></tr>
+      <tr><td>${settings.tax.registered ? 'Taxable value' : 'Value'}</td><td class="num">${formatPaise(bill.taxablePaise, false)}</td></tr>
       ${
-        interstate
-          ? `<tr><td>IGST</td><td class="num">${formatPaise(bill.igstPaise, false)}</td></tr>`
-          : `<tr><td>CGST</td><td class="num">${formatPaise(bill.cgstPaise, false)}</td></tr>
-             <tr><td>SGST</td><td class="num">${formatPaise(bill.sgstPaise, false)}</td></tr>`
+        !settings.tax.registered
+          ? ''
+          : interstate
+            ? `<tr><td>IGST</td><td class="num">${formatPaise(bill.igstPaise, false)}</td></tr>`
+            : `<tr><td>CGST</td><td class="num">${formatPaise(bill.cgstPaise, false)}</td></tr>
+               <tr><td>SGST</td><td class="num">${formatPaise(bill.sgstPaise, false)}</td></tr>`
       }
       ${bill.roundOffPaise !== 0 ? `<tr><td>Round off</td><td class="num">${bill.roundOffPaise > 0 ? '+' : '-'}${formatPaise(Math.abs(bill.roundOffPaise), false)}</td></tr>` : ''}
       <tr class="grand"><td>Total</td><td class="num">${formatPaise(bill.totalPaise, false)}</td></tr>

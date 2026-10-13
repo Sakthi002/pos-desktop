@@ -80,6 +80,7 @@ export function ProductForm({
   units,
   categories,
   defaultTaxInclusive,
+  gstRegistered,
   onSaved,
   onClose,
 }: {
@@ -87,6 +88,8 @@ export function ProductForm({
   units: Unit[];
   categories: Category[];
   defaultTaxInclusive: boolean;
+  /** A shop that charges no GST is not asked for a rate on every product. */
+  gstRegistered: boolean;
   onSaved: (p: Product) => void;
   onClose: () => void;
 }) {
@@ -294,30 +297,34 @@ export function ProductForm({
             onChange={(e) => set('mrp', e.target.value)}
           />
         </Field>
-        <Field label="GST rate" htmlFor="p-tax" required>
-          <select
-            id="p-tax"
-            value={draft.taxRateBp}
-            onChange={(e) => set('taxRateBp', Number(e.target.value))}
-          >
-            {TAX_SLABS.map((s) => (
-              <option key={s.bp} value={s.bp}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {gstRegistered && (
+          <Field label="GST rate" htmlFor="p-tax" required>
+            <select
+              id="p-tax"
+              value={draft.taxRateBp}
+              onChange={(e) => set('taxRateBp', Number(e.target.value))}
+            >
+              {TAX_SLABS.map((s) => (
+                <option key={s.bp} value={s.bp}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
       </div>
 
       <div className="row">
-        <Field
-          label="HSN code"
-          htmlFor="p-hsn"
-          error={errors['hsn']}
-          hint="Required on GST invoices"
-        >
-          <input id="p-hsn" value={draft.hsn} onChange={(e) => set('hsn', e.target.value)} />
-        </Field>
+        {gstRegistered && (
+          <Field
+            label="HSN code"
+            htmlFor="p-hsn"
+            error={errors['hsn']}
+            hint="Required on GST invoices"
+          >
+            <input id="p-hsn" value={draft.hsn} onChange={(e) => set('hsn', e.target.value)} />
+          </Field>
+        )}
         <Field label="Brand" htmlFor="p-brand">
           <input id="p-brand" value={draft.brand} onChange={(e) => set('brand', e.target.value)} />
         </Field>

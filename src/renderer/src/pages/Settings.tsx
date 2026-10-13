@@ -324,18 +324,35 @@ export function Settings({
                 />
               </Field>
             </div>
-            <Field label="Price entry" htmlFor="s-taxmode" required>
-              <select
-                id="s-taxmode"
-                value={draft.tax.mode}
-                onChange={(e) =>
-                  patch('tax', { mode: e.target.value as AppSettings['tax']['mode'] })
-                }
-              >
-                <option value="inclusive">Prices include tax (MRP style)</option>
-                <option value="exclusive">Prices exclude tax (added at billing)</option>
-              </select>
-            </Field>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={draft.tax.registered}
+                onChange={(e) => patch('tax', { registered: e.target.checked })}
+              />
+              <span>
+                This shop is registered for GST
+                <em>
+                  Off, and nothing is charged, shown or printed as tax. Products keep their rates
+                  for the day you register, and past invoices keep their own.
+                </em>
+              </span>
+            </label>
+
+            {draft.tax.registered && (
+              <Field label="Price entry" htmlFor="s-taxmode" required>
+                <select
+                  id="s-taxmode"
+                  value={draft.tax.mode}
+                  onChange={(e) =>
+                    patch('tax', { mode: e.target.value as AppSettings['tax']['mode'] })
+                  }
+                >
+                  <option value="inclusive">Prices include tax (MRP style)</option>
+                  <option value="exclusive">Prices exclude tax (added at billing)</option>
+                </select>
+              </Field>
+            )}
             <label className="check">
               <input
                 type="checkbox"

@@ -58,7 +58,7 @@ const seed = (): void => {
   const base = defaultSettings('Backup Test Shop');
   new SetupService(db).complete({
     ...base,
-    shop: { ...base.shop, stateCode: '33' },
+    shop: { ...base.shop, stateCode: '33', gstin: '33AAAAA0000A1Z5' },
     invoice: { prefix: 'INV', startNumber: 1, financialYearStartMonth: 4 },
   });
   riceId = new CatalogueService(db).create({

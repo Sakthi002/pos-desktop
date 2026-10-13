@@ -348,6 +348,7 @@ export function Products({ settings }: { settings: AppSettings }) {
           units={units}
           categories={categories}
           defaultTaxInclusive={settings.tax.mode === 'inclusive'}
+          gstRegistered={settings.tax.registered}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);

@@ -230,7 +230,12 @@ export class PurchaseService {
 
         // Stock arrives with the cost it arrived at, so a later valuation can
         // read the ledger rather than guess.
-        const unitCost = Math.round((line.taxablePaise * 1000) / line.quantityMilli);
+        // What the goods actually cost this shop: ex-tax when the tax can be
+        // reclaimed, tax included when it cannot.
+        const costBasis = this.settings.tax.registered
+          ? line.taxablePaise
+          : line.taxablePaise + line.taxPaise;
+        const unitCost = Math.round((costBasis * 1000) / line.quantityMilli);
 
         // A product that keeps batches gets one here, created or found by its
         // number, carrying what the bill says about it.

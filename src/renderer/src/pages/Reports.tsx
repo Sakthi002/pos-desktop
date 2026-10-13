@@ -12,6 +12,7 @@ import {
   type ReportKind,
   type ReportTable,
 } from '@shared/reports';
+import type { AppSettings } from '@shared/settings';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const dateInputValue = (d: Date): string =>
@@ -51,7 +52,10 @@ const isNumeric = (column: ReportColumn): boolean =>
  * caveats; this renders them and hands the same rows to the CSV writer, so an
  * exported file always matches what was on screen.
  */
-export function Reports() {
+export function Reports({ settings }: { settings: AppSettings }) {
+  // A shop that charges no GST has no tax position to report on.
+  const kinds = REPORT_KINDS.filter((k) => settings.tax.registered || k !== 'tax-summary');
+
   const [kind, setKind] = useState<ReportKind>('sales-summary');
   const [from, setFrom] = useState(dateInputValue(daysAgo(29)));
   const [to, setTo] = useState(dateInputValue(new Date()));
@@ -129,7 +133,7 @@ export function Reports() {
 
       <div className="toolbar">
         <select value={kind} onChange={(e) => setKind(e.target.value as ReportKind)}>
-          {REPORT_KINDS.map((k) => (
+          {kinds.map((k) => (
             <option key={k} value={k}>
               {REPORT_LABELS[k]}
             </option>

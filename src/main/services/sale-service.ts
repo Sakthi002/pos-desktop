@@ -133,7 +133,9 @@ export class SaleService {
         unitCode: product.unit_code,
         quantityMilli: line.quantityMilli,
         unitPricePaise: line.unitPricePaise,
-        taxRateBp: product.tax_rate_bp,
+        // A shop that is not registered charges no tax, whatever its products
+        // say. The rates stay on the products, for the day it registers.
+        taxRateBp: this.settings.tax.registered ? product.tax_rate_bp : 0,
         taxInclusive: product.tax_inclusive === 1,
         discountPaise: line.discountPaise,
       };

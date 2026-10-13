@@ -204,7 +204,7 @@ export function App() {
         {view === 'purchases' && <Purchases />}
         {view === 'suppliers' && <Suppliers />}
         {view === 'customers' && <Customers settings={settings} />}
-        {view === 'reports' && <Reports />}
+        {view === 'reports' && <Reports settings={settings} />}
         {view === 'settings' && <Settings settings={settings} onSaved={setSettings} />}
         {view === 'dashboard' && <Dashboard onNavigate={navigate} />}
       </AppShell>

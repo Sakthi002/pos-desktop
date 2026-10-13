@@ -62,6 +62,13 @@ export const invoiceSchema = z.object({
 });
 
 export const taxSchema = z.object({
+  /**
+   * Whether the shop charges GST at all. A shop below the registration
+   * threshold bills without it: nothing is charged, nothing is printed, and
+   * the tax on what it buys is part of the cost rather than a credit it could
+   * claim. Products keep their rates, so registering later needs one tick.
+   */
+  registered: z.boolean().default(true),
   /** Whether entered prices already contain tax. */
   mode: z.enum(['inclusive', 'exclusive']).default('inclusive'),
   /** Round the invoice total to the nearest rupee and show the adjustment. */
