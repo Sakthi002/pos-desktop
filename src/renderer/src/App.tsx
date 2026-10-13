@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { call } from './lib/ipc';
 import { SetupWizard } from './pages/SetupWizard';
 import { Placeholder } from './pages/Placeholder';
+import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { Products } from './pages/Products';
 import { Categories } from './pages/Categories';
@@ -142,7 +143,7 @@ export function App() {
       {route === 'customers' && <Customers />}
       {route === 'reports' && <Reports />}
       {route === 'settings' && <Settings settings={settings} onSaved={setSettings} />}
-      {route === 'dashboard' && <Placeholder info={info} db={db} settings={settings} />}
+      {route === 'dashboard' && <Dashboard onNavigate={navigate} />}
     </AppShell>
   );
 }

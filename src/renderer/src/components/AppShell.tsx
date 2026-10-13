@@ -26,7 +26,7 @@ export type Route =
   | 'settings';
 
 const NAV: { id: Route; label: string; icon: typeof Package; ready: boolean }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, ready: false },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, ready: true },
   { id: 'pos', label: 'New Sale', icon: ShoppingCart, ready: true },
   { id: 'sales', label: 'Sales', icon: Receipt, ready: true },
   { id: 'products', label: 'Products', icon: Package, ready: true },

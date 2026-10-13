@@ -23,6 +23,7 @@ of scope for v1, because they need batch and expiry tracking.
 
 | Area      | What is there                                                                      |
 | --------- | ---------------------------------------------------------------------------------- |
+| Dashboard | Today's takings, what is in the till, running low, recent bills                    |
 | Setup     | First-run wizard: shop profile, GST, invoice numbering, receipt size               |
 | Catalogue | Products, categories, units, CSV import/export, stock adjustment with a reason     |
 | Billing   | Barcode and search, discounts, split payments, change, hold and resume, shortcuts  |

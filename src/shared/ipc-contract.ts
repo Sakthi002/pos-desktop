@@ -38,6 +38,7 @@ import {
   type CustomerPage,
 } from './customer';
 import { reportQuerySchema, type ReportTable } from './reports';
+import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
 import {
   backupRunSchema,
   restoreSchema,
@@ -113,6 +114,7 @@ export const ipcContract = {
   'inventory:lowStock': z.void(),
 
   'reports:run': reportQuerySchema,
+  'dashboard:summary': dashboardQuerySchema,
 
   'backup:run': backupRunSchema,
   'backup:list': z.void(),
@@ -284,6 +286,7 @@ export interface IpcResponseMap {
   'inventory:movements': MovementPage;
   'inventory:lowStock': LowStockItem[];
   'reports:run': ReportTable;
+  'dashboard:summary': DashboardSummary;
   'backup:run': BackupResult;
   'backup:list': BackupFile[];
   'backup:inspect': BackupInspection;

@@ -20,6 +20,7 @@ import { ReturnService, ReturnError } from '../services/return-service';
 import { InventoryService, InventoryError } from '../services/inventory-service';
 import { CustomerService, CustomerError } from '../services/customer-service';
 import { ReportService, ReportError } from '../services/report-service';
+import { DashboardService, DashboardError } from '../services/dashboard-service';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 
@@ -116,6 +117,15 @@ export function registerIpcHandlers(): void {
   registerHandler('customers:setActive', ({ id, isActive }) =>
     customerCall(() => customers().setActive(id, isActive)),
   );
+
+  registerHandler('dashboard:summary', (query) => {
+    try {
+      return new DashboardService(getDatabase()).summary(query);
+    } catch (err) {
+      if (err instanceof DashboardError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  });
 
   registerHandler('reports:run', (query) => {
     try {
