@@ -92,6 +92,8 @@ export function Pos({ settings }: { settings: AppSettings }) {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
+  /** Bumped by anything that moves stock, so the wall re-reads it. */
+  const [stockVersion, setStockVersion] = useState(0);
   const [unfiled, setUnfiled] = useState(0);
   const [grid, setGrid] = useState<Product[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
@@ -144,7 +146,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
     return () => {
       cancelled = true;
     };
-  }, [activeCategory]);
+  }, [activeCategory, stockVersion]);
 
   useEffect(() => {
     const term = search.trim();
@@ -358,6 +360,9 @@ export function Pos({ settings }: { settings: AppSettings }) {
       setReceipt(result);
       setPaying(false);
       clearSale();
+      // The sale has just taken stock off the shelf; the wall is showing what
+      // was there a moment ago until it reads it again.
+      setStockVersion((v) => v + 1);
     } catch (err) {
       setPayError(err instanceof Error ? err.message : String(err));
     } finally {
