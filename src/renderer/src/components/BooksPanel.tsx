@@ -127,7 +127,7 @@ export function BooksPanel() {
           <PenLine size={16} />
           <h2>Expenses and transfers</h2>
           <button
-            className="btn-secondary small"
+            className="btn-info small"
             style={{ marginLeft: 'auto' }}
             onClick={() => setJournal(true)}
           >
@@ -212,7 +212,7 @@ export function BooksPanel() {
                 cash in the drawer, money in the bank, what customers owed and what was owed to
                 suppliers. This is posted once.
               </p>
-              <button className="btn-secondary" onClick={() => setOpening(true)}>
+              <button className="btn-info" onClick={() => setOpening(true)}>
                 Enter opening balances
               </button>
             </>

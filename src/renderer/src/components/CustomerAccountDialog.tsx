@@ -151,7 +151,7 @@ export function CustomerAccountDialog({
                 </Field>
               </div>
               <div className="page-actions">
-                <button className="btn-primary" onClick={() => void receive()} disabled={busy}>
+                <button className="btn-success" onClick={() => void receive()} disabled={busy}>
                   <Wallet size={15} /> {busy ? 'Recording…' : 'Record what they paid'}
                 </button>
               </div>

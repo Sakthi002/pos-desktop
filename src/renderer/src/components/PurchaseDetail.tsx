@@ -169,7 +169,7 @@ export function PurchaseDetail({
           </button>
           {purchase && !cancelled && mode === 'view' && (
             <>
-              <button className="btn-secondary" onClick={() => setMode('cancel')}>
+              <button className="btn-warn" onClick={() => setMode('cancel')}>
                 <Ban size={15} /> Cancel bill
               </button>
               {canReturn && (

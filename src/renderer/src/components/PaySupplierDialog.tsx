@@ -85,7 +85,7 @@ export function PaySupplierDialog({
           <button className="btn-secondary" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button className="btn-primary" onClick={() => void pay()} disabled={busy}>
+          <button className="btn-success" onClick={() => void pay()} disabled={busy}>
             {busy ? 'Recording…' : 'Record payment'}
           </button>
         </>

@@ -430,7 +430,7 @@ export function Settings({
             </p>
 
             <div className="logo-row" style={{ marginTop: 12 }}>
-              <button className="btn-secondary" onClick={() => void testPrint()} disabled={testing}>
+              <button className="btn-info" onClick={() => void testPrint()} disabled={testing}>
                 <Printer size={15} /> {testing ? 'Printing…' : 'Print test page'}
               </button>
               {testResult && <span className="field-hint">{testResult}</span>}

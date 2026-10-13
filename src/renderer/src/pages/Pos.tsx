@@ -802,10 +802,10 @@ export function Pos({ settings }: { settings: AppSettings }) {
           </button>
 
           <div className="pos-secondary">
-            <button className="btn-secondary" onClick={holdCart} disabled={cart.length === 0}>
+            <button className="btn-warn" onClick={holdCart} disabled={cart.length === 0}>
               <PauseCircle size={15} /> Hold · F8
             </button>
-            <button className="btn-secondary" onClick={clearSale} disabled={cart.length === 0}>
+            <button className="btn-danger soft" onClick={clearSale} disabled={cart.length === 0}>
               <X size={15} /> Clear
             </button>
           </div>
@@ -847,7 +847,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
               <p className="field-hint">This submission matched a sale already recorded.</p>
             )}
             <div className="page-actions" style={{ marginTop: 14 }}>
-              <button className="btn-secondary" onClick={() => setPreviewSaleId(receipt.id)}>
+              <button className="btn-info" onClick={() => setPreviewSaleId(receipt.id)}>
                 <Printer size={15} /> Print receipt
               </button>
               <button className="btn-primary" onClick={() => setReceipt(null)}>

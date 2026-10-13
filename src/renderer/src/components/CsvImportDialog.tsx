@@ -84,10 +84,10 @@ export function CsvImportDialog({
       </p>
 
       <div className="csv-actions">
-        <button className="btn-secondary" onClick={() => void choose()} disabled={busy}>
+        <button className="btn-info" onClick={() => void choose()} disabled={busy}>
           <Upload size={15} /> Choose file
         </button>
-        <button className="btn-secondary" onClick={() => void downloadTemplate()} disabled={busy}>
+        <button className="btn-info" onClick={() => void downloadTemplate()} disabled={busy}>
           <FileDown size={15} /> Download template
         </button>
         {fileName && <span className="field-hint">{fileName}</span>}

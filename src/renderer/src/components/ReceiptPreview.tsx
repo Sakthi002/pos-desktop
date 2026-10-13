@@ -111,11 +111,7 @@ export function ReceiptPreview({
           </div>
 
           <div className="page-actions">
-            <button
-              className="btn-secondary"
-              onClick={() => void savePdf()}
-              disabled={busy || !html}
-            >
+            <button className="btn-info" onClick={() => void savePdf()} disabled={busy || !html}>
               <FileText size={15} /> Save PDF
             </button>
             <button className="btn-primary" onClick={() => void print()} disabled={busy || !html}>

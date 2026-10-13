@@ -177,7 +177,7 @@ export function PaymentDialog({
       ))}
 
       {rows.length < methods.length && (
-        <button className="btn-secondary small" onClick={addRow}>
+        <button className="btn-info small" onClick={addRow}>
           + Split payment
         </button>
       )}

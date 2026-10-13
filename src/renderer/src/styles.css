@@ -509,7 +509,10 @@ select {
 
 .btn-primary,
 .btn-secondary,
-.btn-danger {
+.btn-danger,
+.btn-success,
+.btn-warn,
+.btn-info {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -550,6 +553,56 @@ select {
   background: var(--line-soft);
 }
 
+/* A button says what kind of act it is before it is read: money in is green,
+   something to be careful with is amber, a thing to look at or take away is
+   blue, and undoing is red. White is kept for the three acts that are none of
+   those — cancel, close, and turning a page. */
+.btn-success {
+  background: var(--ok);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(10, 124, 85, 0.2);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #086a48;
+}
+
+.btn-warn {
+  background: var(--warn-tint);
+  color: var(--warn);
+  border-color: #f3dcb6;
+  font-weight: 700;
+}
+
+.btn-warn:hover:not(:disabled) {
+  background: #fdecd2;
+}
+
+.btn-info {
+  background: var(--c-sky-tint);
+  color: var(--c-sky);
+  border-color: #bfe3f9;
+  font-weight: 700;
+}
+
+.btn-info:hover:not(:disabled) {
+  background: #d3ecfc;
+}
+
+/* The same act, quieter: a filled button commits inside a dialog, a soft one
+   sits on a screen beside other work. */
+.btn-danger.soft {
+  background: var(--err-tint);
+  color: var(--err);
+  border-color: #f8ccd6;
+  box-shadow: none;
+}
+
+.btn-danger.soft:hover:not(:disabled) {
+  background: #fcdde4;
+}
+
 .btn-danger {
   background: var(--err);
   color: #fff;
@@ -562,7 +615,10 @@ select {
 
 .btn-primary:disabled,
 .btn-secondary:disabled,
-.btn-danger:disabled {
+.btn-danger:disabled,
+.btn-success:disabled,
+.btn-warn:disabled,
+.btn-info:disabled {
   cursor: not-allowed;
   box-shadow: none;
   background: var(--line-soft);

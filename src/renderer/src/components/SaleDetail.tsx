@@ -75,7 +75,7 @@ export function SaleDetail({
             Close
           </button>
           {receipt && !voided && returnable?.canReturn && allowed('return.create') && (
-            <button className="btn-secondary" onClick={() => onReturn(receipt.id)}>
+            <button className="btn-warn" onClick={() => onReturn(receipt.id)}>
               <Undo2 size={15} /> Return items
             </button>
           )}

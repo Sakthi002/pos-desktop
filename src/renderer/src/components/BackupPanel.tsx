@@ -150,7 +150,7 @@ export function BackupPanel({
       >
         <div className="logo-row">
           <input value={backup.directory ?? ''} readOnly placeholder="No folder chosen" />
-          <button className="btn-secondary" onClick={() => void chooseFolder()}>
+          <button className="btn-info" onClick={() => void chooseFolder()}>
             <FolderOpen size={15} /> Choose
           </button>
         </div>
@@ -158,13 +158,13 @@ export function BackupPanel({
 
       <div className="page-actions" style={{ margin: '4px 0 18px' }}>
         <button
-          className="btn-primary"
+          className="btn-success"
           onClick={() => void backupNow()}
           disabled={busy || !backup.directory}
         >
           <HardDriveDownload size={15} /> {busy ? 'Backing up…' : 'Back up now'}
         </button>
-        <button className="btn-secondary" onClick={() => void chooseRestore()}>
+        <button className="btn-warn" onClick={() => void chooseRestore()}>
           <RotateCcw size={15} /> Restore from a file…
         </button>
       </div>

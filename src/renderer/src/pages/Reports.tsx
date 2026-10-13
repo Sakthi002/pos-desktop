@@ -122,7 +122,7 @@ export function Reports({ settings }: { settings: AppSettings }) {
         </div>
         <div className="page-actions">
           <button
-            className="btn-secondary"
+            className="btn-info"
             onClick={() => void exportCsv()}
             disabled={!table || table.rows.length === 0}
           >

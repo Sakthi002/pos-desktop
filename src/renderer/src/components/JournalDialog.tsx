@@ -204,7 +204,7 @@ export function JournalDialog({
             <button className="btn-secondary" onClick={() => setAdding(false)} disabled={busy}>
               Cancel
             </button>
-            <button className="btn-secondary" onClick={() => void addAccount()} disabled={busy}>
+            <button className="btn-info" onClick={() => void addAccount()} disabled={busy}>
               Add account
             </button>
           </div>

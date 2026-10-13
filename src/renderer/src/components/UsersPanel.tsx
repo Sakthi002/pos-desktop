@@ -93,7 +93,7 @@ export function UsersPanel({
           <Users size={16} />
           <h2>People</h2>
           <button
-            className="btn-secondary small"
+            className="btn-primary small"
             style={{ marginLeft: 'auto' }}
             onClick={() => setEditing('new')}
           >

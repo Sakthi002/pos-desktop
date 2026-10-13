@@ -159,7 +159,7 @@ export function LoyaltyCardDialog({
 
           {!adjusting ? (
             <button
-              className="btn-secondary small"
+              className="btn-warn small"
               style={{ marginBottom: 14 }}
               onClick={() => setAdjusting(true)}
             >

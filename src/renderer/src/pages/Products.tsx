@@ -148,16 +148,16 @@ export function Products({ settings }: { settings: AppSettings }) {
         </div>
         <div className="page-actions">
           <button
-            className="btn-secondary"
+            className="btn-info"
             onClick={() => setLabelling(true)}
             disabled={items.length === 0}
           >
             <Tag size={15} /> Labels
           </button>
-          <button className="btn-secondary" onClick={() => setImporting(true)}>
+          <button className="btn-info" onClick={() => setImporting(true)}>
             <Upload size={15} /> Import
           </button>
-          <button className="btn-secondary" onClick={() => void exportCsv()} disabled={total === 0}>
+          <button className="btn-info" onClick={() => void exportCsv()} disabled={total === 0}>
             <Download size={15} /> Export
           </button>
           <button className="btn-primary" onClick={() => setEditing('new')}>
