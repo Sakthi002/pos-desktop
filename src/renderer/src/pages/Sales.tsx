@@ -309,14 +309,14 @@ export function Sales({ settings }: { settings: AppSettings }) {
                     </td>
                     <td className="actions">
                       <button
-                        className="icon-btn"
+                        className="icon-btn view"
                         title="View invoice"
                         onClick={() => setDetailId(sale.id)}
                       >
                         <Eye size={15} />
                       </button>
                       <button
-                        className="icon-btn"
+                        className="icon-btn print"
                         title="Reprint"
                         onClick={() => setPrinting(sale.id)}
                       >
