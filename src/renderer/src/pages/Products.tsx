@@ -5,7 +5,6 @@ import {
   Upload,
   Download,
   Package,
-  SlidersHorizontal,
   Pencil,
   Trash2,
   ArrowUpDown,
@@ -13,7 +12,6 @@ import {
 } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { ProductForm } from '../components/ProductForm';
-import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { CsvImportDialog } from '../components/CsvImportDialog';
 import { LabelDialog } from '../components/LabelDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -56,7 +54,6 @@ export function Products({ settings }: { settings: AppSettings }) {
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<Product | null | 'new'>(null);
-  const [adjusting, setAdjusting] = useState<Product | null>(null);
   const [importing, setImporting] = useState(false);
   const [labelling, setLabelling] = useState(false);
 
@@ -291,15 +288,8 @@ export function Products({ settings }: { settings: AppSettings }) {
                         )}
                       </td>
                       <td className="actions">
-                        {p.trackInventory && (
-                          <button
-                            className="icon-btn"
-                            title="Adjust stock"
-                            onClick={() => setAdjusting(p)}
-                          >
-                            <SlidersHorizontal size={15} />
-                          </button>
-                        )}
+                        {/* Stock is changed on the Inventory screen, beside the
+                            history that explains every movement. */}
                         <button className="icon-btn" title="Edit" onClick={() => setEditing(p)}>
                           <Pencil size={15} />
                         </button>
@@ -352,17 +342,6 @@ export function Products({ settings }: { settings: AppSettings }) {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
-            void load();
-          }}
-        />
-      )}
-
-      {adjusting && (
-        <StockAdjustDialog
-          product={adjusting}
-          onClose={() => setAdjusting(null)}
-          onAdjusted={() => {
-            setAdjusting(null);
             void load();
           }}
         />
