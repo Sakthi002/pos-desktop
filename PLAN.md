@@ -285,22 +285,29 @@ are **not** assumed globally unique.
 
 ## 4. Definition of done for v1.0
 
-- [ ] Installs and starts on a clean Windows machine
-- [ ] First-run setup completes
-- [ ] Products can be created, edited, searched, deactivated
-- [ ] A cashier completes a sale with no internet
-- [ ] Totals and taxes verified by automated tests
-- [ ] Sale, payments and stock movements commit atomically
-- [ ] A committed sale survives restart
-- [ ] Receipt preview plus one tested printer workflow
-- [ ] A4 and PDF output work
-- [ ] Sales history and core reports work
-- [ ] Stock updates correctly on sale and return
-- [ ] Backup and restore tested end to end
-- [ ] Automated tests pass
-- [ ] No cloud service required
-- [ ] README and recovery documentation complete
-- [ ] Data model ready for future multi-branch sync
+Ticked only where it has actually been observed, on this machine (Linux) unless
+stated. Four items remain, and every one of them needs hardware.
+
+- [ ] Installs and starts on a clean Windows machine — **installer never built**
+- [x] First-run setup completes — wizard run and inspected; Windows unverified
+- [x] Products can be created, edited, searched, deactivated
+- [x] A cashier completes a sale with no internet — billed inside an isolated
+      network namespace with no interfaces at all
+- [x] Totals and taxes verified by automated tests
+- [x] Sale, payments and stock movements commit atomically
+- [x] A committed sale survives restart — and a process killed mid-write
+- [ ] Receipt preview plus one tested printer workflow — **no printer yet**;
+      preview and a failed print are verified, a real print is not
+- [ ] A4 and PDF output work — A4 rendered and inspected; **PDF export has
+      never actually produced a file**, because it needs a save dialog
+- [x] Sales history and core reports work
+- [x] Stock updates correctly on sale and return
+- [x] Backup and restore tested end to end — including into a clean install
+- [x] Automated tests pass — 337
+- [x] No cloud service required — proven with no network available
+- [x] README and recovery documentation complete
+- [x] Data model ready for future multi-branch sync — UUIDs everywhere, branch
+      scoping and a sync queue in the schema, unused in v1
 
 ---
 
