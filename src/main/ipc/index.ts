@@ -50,6 +50,13 @@ export function registerIpcHandlers(): void {
 
   registerHandler('settings:get', () => new SettingsService(getDatabase()).get());
 
+  /** The shop's own mark, for the sidebar and the settings preview. */
+  registerHandler('settings:logo', () => {
+    const settings = new SettingsService(getDatabase()).get();
+    const path = settings?.shop.logoPath;
+    return { dataUrl: path ? readLogo(path) : null };
+  });
+
   registerHandler('settings:update', (patch) => {
     const service = new SettingsService(getDatabase());
     if (!service.isSetupComplete()) {

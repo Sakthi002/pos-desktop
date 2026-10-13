@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   HardDrive,
 } from 'lucide-react';
+import { call } from '../lib/ipc';
 import type { AppSettings } from '@shared/settings';
 import type { DbStatus } from '@shared/ipc-contract';
 
@@ -37,6 +38,14 @@ const NAV: { id: Route; label: string; icon: typeof Package; ready: boolean }[] 
   { id: 'settings', label: 'Settings', icon: SettingsIcon, ready: true },
 ];
 
+const initialsOf = (name: string): string =>
+  name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0] ?? '')
+    .join('')
+    .toUpperCase();
+
 export function AppShell({
   route,
   onNavigate,
@@ -52,12 +61,31 @@ export function AppShell({
   version: string;
   children: ReactNode;
 }) {
+  const [logo, setLogo] = useState<string | null>(null);
+
+  // Re-read when the path changes, so replacing the logo in Settings shows
+  // here without a restart.
+  useEffect(() => {
+    void call('settings:logo')
+      .then((result) => setLogo(result.dataUrl))
+      .catch(() => setLogo(null));
+  }, [settings.shop.logoPath]);
+
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <strong>{settings.shop.name}</strong>
-          <span>{settings.shop.gstin || 'Local billing'}</span>
+          {logo ? (
+            <img className="brand-mark" src={logo} alt="" />
+          ) : (
+            <span className="brand-mark initials" aria-hidden="true">
+              {initialsOf(settings.shop.name)}
+            </span>
+          )}
+          <span className="brand-text">
+            <strong>{settings.shop.name}</strong>
+            <span>{settings.shop.gstin || 'Local billing'}</span>
+          </span>
         </div>
 
         <nav>

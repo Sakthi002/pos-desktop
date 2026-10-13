@@ -47,12 +47,16 @@ export function Settings({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [printers, setPrinters] = useState<PrinterInfo[]>([]);
+  const [logo, setLogo] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
 
   useEffect(() => {
     void call('print:listPrinters')
       .then(setPrinters)
+      .catch(() => undefined);
+    void call('settings:logo')
+      .then((result) => setLogo(result.dataUrl))
       .catch(() => undefined);
   }, []);
 
@@ -109,7 +113,10 @@ export function Settings({
   async function chooseLogo() {
     try {
       const picked = await call('dialog:pickLogo');
-      if (picked.path) patch('shop', { logoPath: picked.path });
+      if (picked.path) {
+        patch('shop', { logoPath: picked.path });
+        setLogo(picked.dataUrl);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -258,12 +265,15 @@ export function Settings({
                 onChange={(e) => patch('shop', { gstin: e.target.value.toUpperCase() })}
               />
             </Field>
-            <Field label="Shop logo">
+            <Field
+              label="Shop logo"
+              hint="Printed on receipts and shown beside the shop name. PNG, JPG or WebP, up to 2 MB."
+            >
               <div className="logo-row">
+                {logo && <img className="logo-preview" src={logo} alt="" />}
                 <button type="button" className="btn-secondary" onClick={() => void chooseLogo()}>
                   <Image size={15} /> {draft.shop.logoPath ? 'Replace image' : 'Choose image'}
                 </button>
-                {draft.shop.logoPath && <span className="field-hint">{draft.shop.logoPath}</span>}
               </div>
             </Field>
           </>

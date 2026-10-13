@@ -5,16 +5,17 @@
  * and touch targets a counter can take. Every colour, radius and shadow is a
  * token below; nothing further down invents its own.
  *
- * Plus Jakarta Sans ships with the app (SIL OFL, see fonts/OFL.txt) because the
- * app must look the same on a shop PC with no internet and no font installed.
+ * Manrope ships with the app (SIL OFL, see fonts/OFL.txt) because the app must
+ * look the same on a shop PC with no internet and no font installed. Swapping
+ * the face is the two @font-face rules below plus --font-ui.
  */
 
 @font-face {
-  font-family: 'Plus Jakarta Sans';
+  font-family: 'Manrope';
   font-style: normal;
   font-weight: 400 800;
   font-display: swap;
-  src: url('./fonts/jakarta-latin.woff2') format('woff2');
+  src: url('./fonts/manrope-latin.woff2') format('woff2');
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
@@ -22,11 +23,11 @@
 
 /* The rupee sign lives here, so this subset is not optional. */
 @font-face {
-  font-family: 'Plus Jakarta Sans';
+  font-family: 'Manrope';
   font-style: normal;
   font-weight: 400 800;
   font-display: swap;
-  src: url('./fonts/jakarta-latin-ext.woff2') format('woff2');
+  src: url('./fonts/manrope-latin-ext.woff2') format('woff2');
   unicode-range:
     U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
     U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F,
@@ -70,13 +71,10 @@
   --sh-2: 0 6px 16px rgba(16, 20, 24, 0.08);
   --sh-3: 0 18px 48px rgba(16, 20, 24, 0.16);
 
+  --font-ui: 'Manrope', system-ui, -apple-system, sans-serif;
   --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
 
-  font-family:
-    'Plus Jakarta Sans',
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   color: var(--ink);
 }
@@ -518,22 +516,59 @@ kbd {
 
 .brand {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 10px 0;
+  align-items: center;
+  gap: 11px;
+  padding: 4px 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 11px;
+  object-fit: contain;
+  background: var(--bg);
+}
+
+/* Until a shop uploads a logo, its initials stand in for one. */
+.brand-mark.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.brand-text {
+  min-width: 0;
 }
 
 .brand strong {
-  font-size: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.3;
 }
 
-.brand span {
+/* The GSTIN only. A plain `.brand span` also matched the wrapper, which put
+   the shop's name in a monospace face and stopped it wrapping. */
+.brand-text > span {
+  display: block;
+  margin-top: 1px;
   font-family: var(--mono);
   font-size: 11px;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar nav {

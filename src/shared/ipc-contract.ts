@@ -62,6 +62,7 @@ export const ipcContract = {
 
   'settings:get': z.void(),
   'settings:update': settingsPatchSchema,
+  'settings:logo': z.void(),
 
   'dialog:pickLogo': z.void(),
   'dialog:pickBackupDirectory': z.void(),
@@ -250,6 +251,7 @@ export interface IpcResponseMap {
   'setup:complete': SetupResult;
   'settings:get': AppSettings | null;
   'settings:update': AppSettings;
+  'settings:logo': { dataUrl: string | null };
   'dialog:pickLogo': PickedLogo;
   'dialog:openCsv': PickedCsv;
   'dialog:saveCsv': SavedFile;
