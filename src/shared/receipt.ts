@@ -133,7 +133,9 @@ function shopHeaderLines(settings: AppSettings): string[] {
     [shop.city, shop.pincode].filter(Boolean).join(' - '),
     stateName ?? '',
     shop.phone ? `Ph: ${shop.phone}` : '',
-    shop.gstin ? `GSTIN: ${shop.gstin}` : '',
+    // A shop that is not registered does not print a registration number,
+    // even if one is still stored from before it deregistered.
+    settings.tax.registered && shop.gstin ? `GSTIN: ${shop.gstin}` : '',
   ].filter((line) => line.trim() !== '');
 }
 
@@ -207,7 +209,7 @@ function renderThermal(input: ReceiptRenderInput): string {
            <tr><td>Discount</td><td class="r">-${formatPaise(bill.itemDiscountPaise + bill.cartDiscountPaise, false)}</td></tr>`
         : ''
     }
-    <tr><td>Taxable</td><td class="r">${formatPaise(bill.taxablePaise, false)}</td></tr>
+    <tr><td>${settings.tax.registered ? 'Taxable' : 'Value'}</td><td class="r">${formatPaise(bill.taxablePaise, false)}</td></tr>
     ${taxRows}
     ${bill.roundOffPaise !== 0 ? `<tr><td>Round off</td><td class="r">${bill.roundOffPaise > 0 ? '+' : '-'}${formatPaise(Math.abs(bill.roundOffPaise), false)}</td></tr>` : ''}
     <tr class="grand"><td>TOTAL</td><td class="r">${formatPaise(bill.totalPaise, false)}</td></tr>
@@ -230,19 +232,27 @@ function renderA4(input: ReceiptRenderInput): string {
   const isVoided = receipt.status === 'voided';
   const interstate = bill.isInterstate;
 
+  // A shop that charges no tax prints no tax columns: no HSN, no rate, no tax,
+  // and the value column is just the value.
+  const taxed = settings.tax.registered;
+
   const rows = bill.lines
     .map((line) => {
       const precision = precisionFor(line.unitCode);
       return `<tr>
         <td>${line.lineNo}</td>
         <td>${esc(line.name)}${line.sku ? `<br><span class="muted">${esc(line.sku)}</span>` : ''}</td>
-        <td>${esc(line.hsn ?? '')}</td>
+        ${taxed ? `<td>${esc(line.hsn ?? '')}</td>` : ''}
         <td class="num">${formatQuantity(line.quantityMilli, precision)} ${esc(line.unitCode)}</td>
         <td class="num">${formatPaise(line.unitPricePaise, false)}</td>
         <td class="num">${line.totalDiscountPaise > 0 ? formatPaise(line.totalDiscountPaise, false) : '—'}</td>
         <td class="num">${formatPaise(line.taxablePaise, false)}</td>
-        <td class="num">${(line.taxRateBp / 100).toFixed(0)}%</td>
-        <td class="num">${formatPaise(line.taxPaise, false)}</td>
+        ${
+          taxed
+            ? `<td class="num">${(line.taxRateBp / 100).toFixed(0)}%</td>
+               <td class="num">${formatPaise(line.taxPaise, false)}</td>`
+            : ''
+        }
         <td class="num">${formatPaise(line.totalPaise, false)}</td>
       </tr>`;
     })
@@ -310,9 +320,11 @@ function renderA4(input: ReceiptRenderInput): string {
 
   <table class="items">
     <thead><tr>
-      <th>#</th><th>Description</th><th>HSN</th><th class="num">Qty</th><th class="num">Rate</th>
-      <th class="num">Disc</th><th class="num">Taxable</th><th class="num">GST</th>
-      <th class="num">Tax</th><th class="num">Amount</th>
+      <th>#</th><th>Description</th>${taxed ? '<th>HSN</th>' : ''}
+      <th class="num">Qty</th><th class="num">Rate</th><th class="num">Disc</th>
+      <th class="num">${taxed ? 'Taxable' : 'Value'}</th>
+      ${taxed ? '<th class="num">GST</th><th class="num">Tax</th>' : ''}
+      <th class="num">Amount</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>

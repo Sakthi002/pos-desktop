@@ -104,6 +104,11 @@ describe('a shop that is not registered', () => {
       const html = buildReceiptHtml({ receipt: sale, settings, paperSize });
       expect(html).not.toMatch(/TAX INVOICE|Tax Invoice/);
       expect(html).not.toMatch(/CGST|SGST|IGST/);
+      // No empty tax columns on the line table either.
+      expect(html).not.toMatch(/>HSN</);
+      expect(html).not.toMatch(/>GST</);
+      expect(html).not.toMatch(/>Taxable</);
+      expect(html).not.toMatch(/GSTIN/);
     }
   });
 
