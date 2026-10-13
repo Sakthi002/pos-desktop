@@ -13,6 +13,7 @@ import type {
   ProductUpdate,
   Unit,
 } from '@shared/catalogue';
+import type { ValuationMethod } from '@shared/batches';
 import { Repository, newId, now, toDbBool, fromDbBool } from './base';
 
 interface ProductRow {
@@ -32,6 +33,8 @@ interface ProductRow {
   tax_rate_bp: number;
   tax_inclusive: number;
   track_inventory: number;
+  tracks_batches: number;
+  valuation_method: string;
   reorder_level_milli: number;
   is_active: number;
   stock_milli: number | null;
@@ -56,6 +59,8 @@ const toProduct = (row: ProductRow): Product => ({
   taxRateBp: row.tax_rate_bp,
   taxInclusive: fromDbBool(row.tax_inclusive),
   trackInventory: fromDbBool(row.track_inventory),
+  tracksBatches: fromDbBool(row.tracks_batches),
+  valuationMethod: row.valuation_method as ValuationMethod,
   reorderLevelMilli: row.reorder_level_milli,
   isActive: fromDbBool(row.is_active),
   stockMilli: row.stock_milli ?? 0,
@@ -265,10 +270,12 @@ export class CatalogueRepository extends Repository {
       .prepare(
         `INSERT INTO products (id, company_id, sku, barcode, name, description, category_id, brand,
            hsn, unit_code, cost_paise, price_paise, mrp_paise, tax_rate_bp, tax_inclusive,
-           track_inventory, reorder_level_milli, is_active, created_at, updated_at)
+           track_inventory, tracks_batches, valuation_method,
+           reorder_level_milli, is_active, created_at, updated_at)
          VALUES (@id, @company_id, @sku, @barcode, @name, @description, @category_id, @brand,
            @hsn, @unit_code, @cost_paise, @price_paise, @mrp_paise, @tax_rate_bp, @tax_inclusive,
-           @track_inventory, @reorder_level_milli, @is_active, @t, @t)`,
+           @track_inventory, @tracks_batches, @valuation_method,
+           @reorder_level_milli, @is_active, @t, @t)`,
       )
       .run({
         id,
@@ -287,6 +294,8 @@ export class CatalogueRepository extends Repository {
         tax_rate_bp: input.taxRateBp,
         tax_inclusive: toDbBool(input.taxInclusive),
         track_inventory: toDbBool(input.trackInventory),
+        tracks_batches: toDbBool(input.tracksBatches),
+        valuation_method: input.valuationMethod,
         reorder_level_milli: input.reorderLevelMilli,
         is_active: toDbBool(input.isActive),
         t,
@@ -301,7 +310,8 @@ export class CatalogueRepository extends Repository {
            category_id = @category_id, brand = @brand, hsn = @hsn, unit_code = @unit_code,
            cost_paise = @cost_paise, price_paise = @price_paise, mrp_paise = @mrp_paise,
            tax_rate_bp = @tax_rate_bp, tax_inclusive = @tax_inclusive,
-           track_inventory = @track_inventory, reorder_level_milli = @reorder_level_milli,
+           track_inventory = @track_inventory, tracks_batches = @tracks_batches,
+           valuation_method = @valuation_method, reorder_level_milli = @reorder_level_milli,
            is_active = @is_active, updated_at = @t
          WHERE id = @id AND company_id = @company_id`,
       )
@@ -322,6 +332,8 @@ export class CatalogueRepository extends Repository {
         tax_rate_bp: input.taxRateBp,
         tax_inclusive: toDbBool(input.taxInclusive),
         track_inventory: toDbBool(input.trackInventory),
+        tracks_batches: toDbBool(input.tracksBatches),
+        valuation_method: input.valuationMethod,
         reorder_level_milli: input.reorderLevelMilli,
         is_active: toDbBool(input.isActive),
         t: now(),
@@ -370,14 +382,18 @@ export class CatalogueRepository extends Repository {
     referenceId?: string | null;
     reason?: string | null;
     operatorId?: string | null;
+    /** The batch this quantity belongs to, for a product that keeps them. */
+    batchId?: string | null;
   }): string {
     const id = newId();
     this.db
       .prepare(
         `INSERT INTO inventory_movements (id, company_id, branch_id, product_id, movement_type,
-           quantity_milli, unit_cost_paise, reference_type, reference_id, reason, operator_id, created_at)
+           quantity_milli, unit_cost_paise, reference_type, reference_id, reason, operator_id,
+           batch_id, created_at)
          VALUES (@id, @company_id, @branch_id, @product_id, @movement_type,
-           @quantity_milli, @unit_cost_paise, @reference_type, @reference_id, @reason, @operator_id, @t)`,
+           @quantity_milli, @unit_cost_paise, @reference_type, @reference_id, @reason, @operator_id,
+           @batch_id, @t)`,
       )
       .run({
         id,
@@ -391,6 +407,7 @@ export class CatalogueRepository extends Repository {
         reference_id: args.referenceId ?? null,
         reason: args.reason ?? null,
         operator_id: args.operatorId ?? null,
+        batch_id: args.batchId ?? null,
         t: now(),
       });
     return id;

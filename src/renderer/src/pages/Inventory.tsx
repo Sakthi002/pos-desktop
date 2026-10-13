@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Search, Boxes, History, SlidersHorizontal, AlertTriangle } from 'lucide-react';
 import { call } from '../lib/ipc';
+import type { Batch } from '@shared/batches';
 import { MovementHistory } from '../components/MovementHistory';
 import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { formatQuantity, precisionFor } from '@shared/quantity';
@@ -8,7 +9,7 @@ import { formatPaise } from '@shared/money';
 import type { Product } from '@shared/catalogue';
 import type { LowStockItem } from '@shared/inventory';
 
-type Tab = 'all' | 'low-stock';
+type Tab = 'all' | 'low-stock' | 'batches';
 
 /**
  * Stock as the ledger sees it. Nothing here edits a balance directly — an
@@ -22,6 +23,7 @@ export function Inventory() {
 
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('all');
+  const [batches, setBatches] = useState<Batch[]>([]);
   const [page, setPage] = useState(1);
   const pageSize = 25;
 
@@ -46,6 +48,7 @@ export function Inventory() {
         }),
         call('inventory:lowStock'),
       ]);
+      setBatches(tab === 'batches' ? await call('batches:list', { inStockOnly: true }) : []);
       // Service items have no stock to show, so they stay out of this screen.
       setItems(result.items.filter((p) => p.trackInventory));
       setTotal(result.total);
@@ -122,6 +125,7 @@ export function Inventory() {
             [
               { id: 'all', label: 'All stock' },
               { id: 'low-stock', label: `Low stock${low.length ? ` (${low.length})` : ''}` },
+              { id: 'batches', label: 'Batches' },
             ] as { id: Tab; label: string }[]
           ).map((t) => (
             <button
@@ -146,6 +150,59 @@ export function Inventory() {
 
       {loading ? (
         <p className="empty">Loading…</p>
+      ) : tab === 'batches' ? (
+        batches.length === 0 ? (
+          <div className="empty-state">
+            <Boxes size={34} />
+            <h2>No batches in stock</h2>
+            <p>
+              Turn on “keep batches” for a product, and the batch number and expiry are asked for
+              when its stock arrives on a supplier’s bill.
+            </p>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Batch</th>
+                  <th>Expires</th>
+                  <th className="num">Days left</th>
+                  <th className="num">In stock</th>
+                  <th className="num">At cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches.map((b) => {
+                  const precision = precisionFor(b.unitCode);
+                  const soon = b.daysToExpiry !== null && b.daysToExpiry <= 30;
+                  return (
+                    <tr key={b.id} className={b.isExpired ? 'muted-row' : ''}>
+                      <td>
+                        <strong>{b.productName}</strong>
+                        {b.isExpired && <span className="pill danger">Expired</span>}
+                      </td>
+                      <td className="mono">{b.batchNumber}</td>
+                      <td>{b.expiresOn ?? '—'}</td>
+                      <td className="num">
+                        <span className={soon ? 'stock low' : 'stock'}>
+                          {b.daysToExpiry === null ? '—' : b.daysToExpiry}
+                        </span>
+                      </td>
+                      <td className="num">
+                        {formatQuantity(b.balanceMilli, precision)} {b.unitCode}
+                      </td>
+                      <td className="num">
+                        {formatPaise(Math.round((b.balanceMilli * b.costPaise) / 1000))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : items.length === 0 ? (
         <div className="empty-state">
           <Boxes size={34} />

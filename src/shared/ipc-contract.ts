@@ -39,6 +39,7 @@ import {
 } from './customer';
 import { reportQuerySchema, type ReportTable } from './reports';
 import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
+import { batchInputSchema, batchQuerySchema, type Batch } from './batches';
 import {
   adjustPointsSchema,
   issueCardSchema,
@@ -188,6 +189,9 @@ export const ipcContract = {
   'users:update': updateUserSchema,
   'users:setActive': setUserActiveSchema,
   'users:resetPassword': resetPasswordSchema,
+
+  'batches:list': batchQuerySchema.partial(),
+  'batches:save': batchInputSchema,
 
   'loyalty:cards': z.void(),
   'loyalty:forCustomer': z.object({ customerId: z.string().uuid() }),
@@ -407,6 +411,9 @@ export interface IpcResponseMap {
   'users:update': UserSummary;
   'users:setActive': UserSummary;
   'users:resetPassword': UserSummary;
+
+  'batches:list': Batch[];
+  'batches:save': Batch;
 
   'loyalty:cards': LoyaltyCard[];
   'loyalty:forCustomer': LoyaltyCard | null;

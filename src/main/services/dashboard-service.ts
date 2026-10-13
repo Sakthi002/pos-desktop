@@ -16,6 +16,7 @@ import { saleQuerySchema, type PaymentMethod } from '@shared/sale';
 import { ReportsRepository, type Range } from '../db/repositories/reports';
 import { InventoryRepository } from '../db/repositories/inventory';
 import { SalesRepository } from '../db/repositories/sales';
+import { BatchService } from './batch-service';
 import { loadBranchContext } from './branch-context';
 
 export class DashboardError extends Error {
@@ -39,6 +40,7 @@ export class DashboardService {
   private readonly reports: ReportsRepository;
   private readonly inventory: InventoryRepository;
   private readonly sales: SalesRepository;
+  private readonly batches: BatchService;
 
   constructor(db: Database) {
     const ctx = loadBranchContext(db);
@@ -46,6 +48,7 @@ export class DashboardService {
     this.reports = new ReportsRepository(db, ctx.companyId);
     this.inventory = new InventoryRepository(db, ctx.companyId);
     this.sales = new SalesRepository(db, ctx.companyId);
+    this.batches = new BatchService(db);
   }
 
   private takings(range: Range): DashboardTakings {
@@ -76,6 +79,9 @@ export class DashboardService {
       // A handful: the point is a glance, not a report.
       lowStock: this.inventory.lowStock(5),
       recentSales: this.sales.search(saleQuerySchema.parse({ pageSize: 10, page: 1 })).items,
+      // A month is the window a shop can still act in: return it, discount it,
+      // or move it to the front of the shelf.
+      expiring: this.batches.countExpiring(30),
     };
   }
 }

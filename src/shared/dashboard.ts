@@ -40,4 +40,6 @@ export interface DashboardSummary {
   methods: DashboardMethod[];
   lowStock: LowStockItem[];
   recentSales: SaleSummary[];
+  /** Batches on the shelf that expire within a month, or already have. */
+  expiring: { batches: number; valuePaise: number };
 }

@@ -88,11 +88,11 @@ Invoice numbers are a local per-branch sequence and are not globally unique.
 
 ## State
 
-Phases 0-9 complete, Phase 10 except Windows packaging, and phases 11 to 14:
+Phases 0-9 complete, Phase 10 except Windows packaging, and phases 11 to 15:
 foundation, schema, settings and setup, catalogue, billing, receipts, sales
 history, inventory and returns, customers and reports, backup and audit, tests
 and documentation, suppliers and purchases, the double-entry ledger, users with
-roles and login, and loyalty points.
+roles and login, loyalty points, and batches with expiry.
 
 The ledger posts itself from the documents — a sale, a credit note, a purchase,
 a debit note, a supplier payment — inside the same transaction that writes the
@@ -105,6 +105,7 @@ the Windows installer has never been built or installed, and printing is
 unverified on a real thermal printer (Phase 0b). See `PLAN.md`.
 
 Report definitions live in `docs/reports.md`, calculation rules in
-`docs/calculations.md`, who may do what in `docs/users.md`, how points work in `docs/loyalty.md`, and
+`docs/calculations.md`, who may do what in `docs/users.md`, how points work in `docs/loyalty.md`, how batches and expiry
+work in `docs/batches.md`, and
 what a shop
 needs when something goes wrong in `docs/operations.md`.

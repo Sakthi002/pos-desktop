@@ -34,6 +34,7 @@ export const REPORT_KINDS = [
   'stock-on-hand',
   'stock-movement',
   'low-stock',
+  'expiry',
 ] as const;
 
 export type ReportKind = (typeof REPORT_KINDS)[number];
@@ -42,6 +43,7 @@ export type ReportKind = (typeof REPORT_KINDS)[number];
 export const SNAPSHOT_REPORTS: ReportKind[] = [
   'stock-on-hand',
   'low-stock',
+  'expiry',
   'supplier-outstanding',
 ];
 
@@ -97,6 +99,7 @@ export const REPORT_LABELS: Record<ReportKind, string> = {
   'stock-on-hand': 'Stock on hand',
   'stock-movement': 'Stock movement',
   'low-stock': 'Low stock',
+  expiry: 'Expiring stock',
 };
 
 const csvCell = (value: ReportCell, format: ColumnFormat): string | number => {

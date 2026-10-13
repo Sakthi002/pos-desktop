@@ -32,6 +32,7 @@ import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
 import { LedgerService } from './ledger-service';
 import { LoyaltyService } from './loyalty-service';
+import { BatchService } from './batch-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class ReturnError extends Error {
@@ -52,6 +53,7 @@ export class ReturnService {
   private readonly audit: AuditRepository;
   private readonly ledger: LedgerService;
   private readonly loyalty: LoyaltyService;
+  private readonly batches: BatchService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -68,6 +70,7 @@ export class ReturnService {
     this.audit = new AuditRepository(db);
     this.ledger = new LedgerService(db);
     this.loyalty = new LoyaltyService(db);
+    this.batches = new BatchService(db);
   }
 
   /** The invoice as a return screen needs it: what is left on each line. */
@@ -264,16 +267,25 @@ export class ReturnService {
         });
 
         if (line.restocked && line.productId) {
-          this.catalogue.recordMovement({
-            branchId: sale.branchId,
-            productId: line.productId,
-            movementType: 'sale_return',
-            quantityMilli: line.quantityMilli,
-            referenceType: 'sale_return',
-            referenceId: returnId,
-            reason: `Return ${returnNumber} against ${sale.invoiceNumber}`,
-            operatorId: this.ctx.operatorId,
-          });
+          // Goods go back to the batch they came out of, never to a newer one:
+          // a packet returned today still expires when its own batch does.
+          const plan = this.batches.allocateForReturn(sale.id, line.productId, line.quantityMilli);
+          const portions =
+            plan.length > 0 ? plan : [{ batchId: '', quantityMilli: line.quantityMilli }];
+
+          for (const portion of portions) {
+            this.catalogue.recordMovement({
+              branchId: sale.branchId,
+              productId: line.productId,
+              movementType: 'sale_return',
+              quantityMilli: portion.quantityMilli,
+              referenceType: 'sale_return',
+              referenceId: returnId,
+              reason: `Return ${returnNumber} against ${sale.invoiceNumber}`,
+              operatorId: this.ctx.operatorId,
+              batchId: portion.batchId || null,
+            });
+          }
         }
       }
 

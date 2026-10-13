@@ -36,6 +36,7 @@ import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
 import { LedgerService } from './ledger-service';
 import { LoyaltyService } from './loyalty-service';
+import { BatchService } from './batch-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class SaleError extends Error {
@@ -68,6 +69,7 @@ export class SaleService {
   private readonly audit: AuditRepository;
   private readonly ledger: LedgerService;
   private readonly loyalty: LoyaltyService;
+  private readonly batches: BatchService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -82,6 +84,7 @@ export class SaleService {
     this.audit = new AuditRepository(db);
     this.ledger = new LedgerService(db);
     this.loyalty = new LoyaltyService(db);
+    this.batches = new BatchService(db);
   }
 
   /** Customer's state decides CGST+SGST versus IGST; unknown means local. */
@@ -378,8 +381,8 @@ export class SaleService {
 
       const insertMovement = this.db.prepare(
         `INSERT INTO inventory_movements (id, company_id, branch_id, product_id, movement_type,
-           quantity_milli, reference_type, reference_id, operator_id, created_at)
-         VALUES (?, ?, ?, ?, 'sale', ?, 'sale', ?, ?, ?)`,
+           quantity_milli, reference_type, reference_id, operator_id, batch_id, created_at)
+         VALUES (?, ?, ?, ?, 'sale', ?, 'sale', ?, ?, ?, ?)`,
       );
 
       const products = this.loadProducts(lines.map((l) => l.productId as string));
@@ -410,16 +413,28 @@ export class SaleService {
 
         // Only tracked products move stock; a service item sells without it.
         if (line.productId && products.get(line.productId)?.track_inventory === 1) {
-          insertMovement.run(
-            newId(),
-            this.ctx.companyId,
-            this.ctx.branchId,
-            line.productId,
-            -line.quantityMilli,
-            saleId,
-            this.ctx.operatorId,
-            timestamp,
-          );
+          // A product that keeps batches leaves one movement per batch, taken
+          // earliest expiry first. One that does not leaves a single movement
+          // with no batch, exactly as before.
+          const plan = this.batches.allocateForSale(line.productId, line.quantityMilli);
+          const portions =
+            plan.length > 0
+              ? plan
+              : [{ batchId: null as string | null, quantityMilli: line.quantityMilli }];
+
+          for (const portion of portions) {
+            insertMovement.run(
+              newId(),
+              this.ctx.companyId,
+              this.ctx.branchId,
+              line.productId,
+              -portion.quantityMilli,
+              saleId,
+              this.ctx.operatorId,
+              portion.batchId ?? null,
+              timestamp,
+            );
+          }
         }
       }
 
@@ -526,6 +541,8 @@ export class SaleService {
           reason: `Void of invoice ${sale.invoiceNumber}: ${parsed.reason}`,
           operatorId: this.ctx.operatorId,
           at,
+          // Back to the batch it came out of, not just back to the product.
+          batchId: movement.batchId,
         });
       }
 

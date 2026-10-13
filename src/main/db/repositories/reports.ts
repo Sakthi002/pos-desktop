@@ -154,6 +154,7 @@ export interface SupplierOwedRow {
 }
 
 export interface StockRow {
+  id: string;
   name: string;
   sku: string | null;
   unit_code: string;
@@ -493,7 +494,7 @@ export class ReportsRepository extends Repository {
   stockOnHand(): StockRow[] {
     return this.db
       .prepare(
-        `SELECT p.name, p.sku, p.unit_code, p.cost_paise, p.price_paise,
+        `SELECT p.id, p.name, p.sku, p.unit_code, p.cost_paise, p.price_paise,
                 (SELECT COALESCE(SUM(m.quantity_milli), 0)
                    FROM inventory_movements m WHERE m.product_id = p.id) AS stock_milli
            FROM products p

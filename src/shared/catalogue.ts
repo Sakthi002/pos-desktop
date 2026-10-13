@@ -5,6 +5,7 @@
  * operator text into those integers before anything is sent to the main process.
  */
 import { z } from 'zod';
+import { VALUATION_METHODS, type ValuationMethod } from './batches';
 
 // ─── Units ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ export interface Product {
   taxRateBp: number;
   taxInclusive: boolean;
   trackInventory: boolean;
+  /** Keeps batches with their own expiry dates. */
+  tracksBatches: boolean;
+  valuationMethod: ValuationMethod;
   reorderLevelMilli: number;
   isActive: boolean;
   /** Derived from the movement ledger, not stored. */
@@ -97,6 +101,9 @@ export const productInputSchema = z.object({
   taxInclusive: z.boolean().default(true),
   /** False for a service line that should never move stock. */
   trackInventory: z.boolean().default(true),
+  /** Off unless the shop sells something that goes out of date. */
+  tracksBatches: z.boolean().default(false),
+  valuationMethod: z.enum(VALUATION_METHODS).default('fifo'),
   reorderLevelMilli: z.number().int().min(0).default(0),
   isActive: z.boolean().default(true),
   /** Only honoured on create; afterwards stock moves through adjustments. */

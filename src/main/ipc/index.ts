@@ -25,6 +25,7 @@ import { SupplierService, SupplierError } from '../services/supplier-service';
 import { PurchaseService, PurchaseError } from '../services/purchase-service';
 import { LedgerService, LedgerError } from '../services/ledger-service';
 import { LoyaltyService, LoyaltyError } from '../services/loyalty-service';
+import { BatchService, BatchError } from '../services/batch-service';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 import { AuthService, AuthError } from '../services/auth-service';
@@ -242,6 +243,18 @@ export function registerIpcHandlers(): void {
   registerHandler('users:resetPassword', (input) =>
     auth((service) => service.resetPassword(input)),
   );
+
+  const batched = <T>(work: (batches: BatchService) => T): T => {
+    try {
+      return work(new BatchService(getDatabase()));
+    } catch (err) {
+      if (err instanceof BatchError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  registerHandler('batches:list', (query) => batched((batches) => batches.list(query)));
+  registerHandler('batches:save', (input) => batched((batches) => batches.ensure(input)));
 
   const points = <T>(work: (loyalty: LoyaltyService) => T): T => {
     try {

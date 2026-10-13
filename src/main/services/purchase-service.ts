@@ -36,6 +36,7 @@ import { CatalogueRepository } from '../db/repositories/catalogue';
 import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
 import { LedgerService } from './ledger-service';
+import { BatchService } from './batch-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class PurchaseError extends Error {
@@ -56,6 +57,7 @@ interface ProductRow {
   unit_code: string;
   tax_rate_bp: number;
   track_inventory: number;
+  tracks_batches: number;
   is_active: number;
 }
 
@@ -66,6 +68,7 @@ export class PurchaseService {
   private readonly catalogue: CatalogueRepository;
   private readonly audit: AuditRepository;
   private readonly ledger: LedgerService;
+  private readonly batches: BatchService;
 
   constructor(private readonly db: Database) {
     const ctx = loadBranchContext(db);
@@ -82,6 +85,7 @@ export class PurchaseService {
     this.catalogue = new CatalogueRepository(db, ctx.companyId);
     this.audit = new AuditRepository(db);
     this.ledger = new LedgerService(db);
+    this.batches = new BatchService(db);
   }
 
   private loadProducts(ids: string[]): Map<string, ProductRow> {
@@ -89,7 +93,8 @@ export class PurchaseService {
     const placeholders = ids.map(() => '?').join(',');
     const rows = this.db
       .prepare(
-        `SELECT id, name, sku, hsn, unit_code, tax_rate_bp, track_inventory, is_active
+        `SELECT id, name, sku, hsn, unit_code, tax_rate_bp, track_inventory, tracks_batches,
+                is_active
            FROM products WHERE company_id = ? AND id IN (${placeholders})`,
       )
       .all(this.ctx.companyId, ...ids) as ProductRow[];
@@ -226,6 +231,28 @@ export class PurchaseService {
         // Stock arrives with the cost it arrived at, so a later valuation can
         // read the ledger rather than guess.
         const unitCost = Math.round((line.taxablePaise * 1000) / line.quantityMilli);
+
+        // A product that keeps batches gets one here, created or found by its
+        // number, carrying what the bill says about it.
+        let batchId: string | null = null;
+        if (line.productId && product.tracks_batches === 1) {
+          if (!source.batchNumber) {
+            throw new PurchaseError(
+              'BATCH_REQUIRED',
+              `${line.name} is kept in batches, so this line needs a batch number.`,
+            );
+          }
+          batchId = this.batches.ensure({
+            productId: line.productId,
+            batchNumber: source.batchNumber,
+            manufacturedOn: source.manufacturedOn ?? null,
+            expiresOn: source.expiresOn ?? null,
+            costPaise: unitCost,
+            mrpPaise: source.mrpPaise ?? null,
+          }).id;
+          this.repo.setPurchaseItemBatch(purchaseId, line.lineNo, batchId);
+        }
+
         if (product.track_inventory === 1 && line.productId) {
           this.catalogue.recordMovement({
             branchId: this.ctx.branchId,
@@ -237,6 +264,7 @@ export class PurchaseService {
             referenceId: purchaseId,
             reason: `Purchase ${purchaseNumber}`,
             operatorId: this.ctx.operatorId,
+            batchId,
           });
         }
 

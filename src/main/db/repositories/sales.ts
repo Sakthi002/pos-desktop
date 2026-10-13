@@ -211,14 +211,20 @@ export class SalesRepository extends Repository {
   }
 
   /** The stock this sale took out, as the ledger recorded it. */
-  saleMovements(saleId: string): { productId: string; quantityMilli: number }[] {
+  saleMovements(
+    saleId: string,
+  ): { productId: string; quantityMilli: number; batchId: string | null }[] {
     const rows = this.db
       .prepare(
-        `SELECT product_id, quantity_milli FROM inventory_movements
+        `SELECT product_id, quantity_milli, batch_id FROM inventory_movements
           WHERE reference_type = 'sale' AND reference_id = ?`,
       )
-      .all(saleId) as { product_id: string; quantity_milli: number }[];
-    return rows.map((r) => ({ productId: r.product_id, quantityMilli: r.quantity_milli }));
+      .all(saleId) as { product_id: string; quantity_milli: number; batch_id: string | null }[];
+    return rows.map((r) => ({
+      productId: r.product_id,
+      quantityMilli: r.quantity_milli,
+      batchId: r.batch_id,
+    }));
   }
 
   /**
@@ -233,12 +239,14 @@ export class SalesRepository extends Repository {
     reason: string;
     operatorId: string | null;
     at: string;
+    /** The batch it came out of, so it goes back where it was taken from. */
+    batchId: string | null;
   }): void {
     this.db
       .prepare(
         `INSERT INTO inventory_movements (id, company_id, branch_id, product_id, movement_type,
-           quantity_milli, reference_type, reference_id, reason, operator_id, created_at)
-         VALUES (?, ?, ?, ?, 'adjustment', ?, 'sale_void', ?, ?, ?, ?)`,
+           quantity_milli, reference_type, reference_id, reason, operator_id, batch_id, created_at)
+         VALUES (?, ?, ?, ?, 'adjustment', ?, 'sale_void', ?, ?, ?, ?, ?)`,
       )
       .run(
         newId(),
@@ -249,6 +257,7 @@ export class SalesRepository extends Repository {
         input.saleId,
         input.reason,
         input.operatorId,
+        input.batchId,
         input.at,
       );
   }

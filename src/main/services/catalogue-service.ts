@@ -498,6 +498,10 @@ export class CatalogueService {
           taxRateBp: Math.round(taxPercent * 100),
           taxInclusive: yesNo(cell('tax_inclusive'), true),
           trackInventory: yesNo(cell('track_inventory'), true),
+          // A CSV never carries batches: a shop that needs them sets them on
+          // the product and enters the batch when the stock arrives.
+          tracksBatches: false,
+          valuationMethod: 'fifo' as const,
           reorderLevelMilli: reorderMilli ?? 0,
           isActive: true,
         };

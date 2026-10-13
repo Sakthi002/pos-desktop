@@ -86,6 +86,8 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'products:exportCsv': 'product.manage',
   'products:csvTemplate': 'product.manage',
   'products:adjustStock': 'inventory.adjust',
+  'batches:list': 'report.view',
+  'batches:save': 'inventory.adjust',
 
   'loyalty:cards': 'customer.manage',
   'loyalty:issue': 'customer.manage',

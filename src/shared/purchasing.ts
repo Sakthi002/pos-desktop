@@ -116,6 +116,10 @@ export const purchaseLineInputSchema = z.object({
   discountPaise: z.number().int().min(0).default(0),
   /** Push the MRP onto the product as its new selling price. */
   updateSellingPrice: z.boolean().default(false),
+  /** For a product that keeps batches: which one this stock belongs to. */
+  batchNumber: z.string().trim().max(40).nullable().optional(),
+  manufacturedOn: z.union([z.string().max(10), z.null()]).optional(),
+  expiresOn: z.union([z.string().max(10), z.null()]).optional(),
 });
 
 export const purchaseInputSchema = z.object({

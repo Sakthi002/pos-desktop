@@ -20,6 +20,7 @@ import { formatQuantity, precisionFor } from '@shared/quantity';
 import { ReportsRepository, type Range } from '../db/repositories/reports';
 import { InventoryRepository } from '../db/repositories/inventory';
 import { LedgerService } from './ledger-service';
+import { BatchService } from './batch-service';
 import { ACCOUNTS } from '@shared/ledger';
 import { now } from '../db/repositories/base';
 import { loadBranchContext } from './branch-context';
@@ -76,6 +77,7 @@ export class ReportService {
   private readonly repo: ReportsRepository;
   private readonly inventory: InventoryRepository;
   private readonly ledger: LedgerService;
+  private readonly batches: BatchService;
 
   constructor(db: Database) {
     const ctx = loadBranchContext(db);
@@ -83,6 +85,7 @@ export class ReportService {
     this.repo = new ReportsRepository(db, ctx.companyId);
     this.inventory = new InventoryRepository(db, ctx.companyId);
     this.ledger = new LedgerService(db);
+    this.batches = new BatchService(db);
   }
 
   run(input: unknown): ReportTable {
@@ -144,6 +147,8 @@ export class ReportService {
         return { ...base, ...this.stockMovements(range) };
       case 'low-stock':
         return { ...base, ...this.lowStock() };
+      case 'expiry':
+        return { ...base, ...this.expiry() };
     }
   }
 
@@ -725,11 +730,14 @@ export class ReportService {
   private stockOnHand(): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
     const stock = this.repo.stockOnHand();
 
+    // Valued by each product's own method: a chemist costs what is left as
+    // the newest stock, a grain merchant averages. For a product that keeps no
+    // batches there is one cost and every method agrees.
     const rows: ReportRow[] = stock.map((p) => ({
       name: p.name,
       sku: p.sku,
       stock: qty(p.stock_milli, p.unit_code),
-      cost: Math.round((p.cost_paise * p.stock_milli) / 1000),
+      cost: this.batches.valueOf(p.id, p.stock_milli),
       retail: Math.round((p.price_paise * p.stock_milli) / 1000),
     }));
 
@@ -745,7 +753,49 @@ export class ReportService {
       ],
       rows,
       totals: { name: 'Total', sku: '', stock: '', cost: sum('cost'), retail: sum('retail') },
-      note: 'Active products with stock tracking only. Values use today’s cost and selling price.',
+      note:
+        'Active products with stock tracking only. Cost follows each product’s ' +
+        'valuation method; retail uses today’s selling price.',
+    };
+  }
+
+  /**
+   * What is about to go out of date, worst first. Expired batches are listed
+   * too: a shop needs to know what is on the shelf that it cannot sell.
+   */
+  private expiry(): Pick<ReportTable, 'columns' | 'rows' | 'totals' | 'note'> {
+    const batches = this.batches.expiring(90);
+
+    const rows: ReportRow[] = batches.map((b) => ({
+      product: b.productName,
+      batch: b.batchNumber,
+      expires: b.expiresOn ?? '—',
+      days: b.daysToExpiry ?? 0,
+      stock: qty(b.balanceMilli, b.unitCode),
+      value: Math.round((b.balanceMilli * b.costPaise) / 1000),
+    }));
+
+    return {
+      columns: [
+        text('product', 'Product'),
+        text('batch', 'Batch'),
+        text('expires', 'Expires'),
+        int('days', 'Days left'),
+        text('stock', 'In stock'),
+        money('value', 'At cost'),
+      ],
+      rows,
+      totals: {
+        product: 'Total',
+        batch: '',
+        expires: '',
+        days: '',
+        stock: '',
+        value: rows.reduce((a, r) => a + (r['value'] as number), 0),
+      },
+      note:
+        'Batches holding stock that expire within 90 days, and any already expired ' +
+        '(shown with days left below zero). An expired batch can never be sold.',
     };
   }
 

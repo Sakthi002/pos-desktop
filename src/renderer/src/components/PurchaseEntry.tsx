@@ -20,6 +20,9 @@ interface EntryLine {
   mrp: string;
   discount: string;
   updateSellingPrice: boolean;
+  /** Only asked for when the product keeps batches. */
+  batchNumber: string;
+  expiresOn: string;
 }
 
 const toPaise = (value: string): number => parseRupees(value) ?? 0;
@@ -93,6 +96,8 @@ export function PurchaseEntry({
               mrp: product.mrpPaise ? (product.mrpPaise / 100).toFixed(2) : '',
               discount: '',
               updateSellingPrice: false,
+              batchNumber: '',
+              expiresOn: '',
             },
           ],
     );
@@ -146,6 +151,8 @@ export function PurchaseEntry({
           mrpPaise: line.mrp ? toPaise(line.mrp) : null,
           discountPaise: toPaise(line.discount),
           updateSellingPrice: line.updateSellingPrice,
+          batchNumber: line.batchNumber.trim() || null,
+          expiresOn: line.expiresOn || null,
         },
       ];
     });
@@ -304,6 +311,24 @@ export function PurchaseEntry({
                     <span className="sub-cell">
                       {(line.product.taxRateBp / 100).toFixed(0)}% GST · {line.product.unitCode}
                     </span>
+                    {line.product.tracksBatches && (
+                      <span className="batch-fields">
+                        <input
+                          className="batch-input"
+                          value={line.batchNumber}
+                          placeholder="Batch no."
+                          aria-label={`Batch number for ${line.product.name}`}
+                          onChange={(e) => patch(line.product.id, { batchNumber: e.target.value })}
+                        />
+                        <input
+                          className="batch-input"
+                          type="date"
+                          value={line.expiresOn}
+                          aria-label={`Expiry for ${line.product.name}`}
+                          onChange={(e) => patch(line.product.id, { expiresOn: e.target.value })}
+                        />
+                      </span>
+                    )}
                   </td>
                   <td className="num">
                     <input

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
 import { Field } from './Field';
+import { VALUATION_LABELS, VALUATION_METHODS, type ValuationMethod } from '@shared/batches';
 import { call } from '../lib/ipc';
 import { TAX_SLABS, type Product, type Unit, type Category } from '@shared/catalogue';
 import { parseRupees, paiseToDecimalString } from '@shared/money';
@@ -21,6 +22,8 @@ interface Draft {
   taxRateBp: number;
   taxInclusive: boolean;
   trackInventory: boolean;
+  tracksBatches: boolean;
+  valuationMethod: ValuationMethod;
   reorderLevel: string;
   openingStock: string;
   isActive: boolean;
@@ -41,6 +44,8 @@ const emptyDraft = (defaultTaxInclusive: boolean): Draft => ({
   taxRateBp: 0,
   taxInclusive: defaultTaxInclusive,
   trackInventory: true,
+  tracksBatches: false,
+  valuationMethod: 'fifo',
   reorderLevel: '',
   openingStock: '',
   isActive: true,
@@ -61,6 +66,8 @@ const draftFrom = (p: Product): Draft => ({
   taxRateBp: p.taxRateBp,
   taxInclusive: p.taxInclusive,
   trackInventory: p.trackInventory,
+  tracksBatches: p.tracksBatches,
+  valuationMethod: p.valuationMethod,
   reorderLevel: p.reorderLevelMilli
     ? formatQuantity(p.reorderLevelMilli, precisionFor(p.unitCode))
     : '',
@@ -150,6 +157,8 @@ export function ProductForm({
       taxRateBp: draft.taxRateBp,
       taxInclusive: draft.taxInclusive,
       trackInventory: draft.trackInventory,
+      tracksBatches: draft.trackInventory && draft.tracksBatches,
+      valuationMethod: draft.valuationMethod,
       reorderLevelMilli: reorderMilli ?? 0,
       isActive: draft.isActive,
     };
@@ -358,6 +367,44 @@ export function ProductForm({
             />
           </Field>
         </div>
+      )}
+
+      {draft.trackInventory && (
+        <>
+          <label className="check" style={{ marginTop: 10 }}>
+            <input
+              type="checkbox"
+              checked={draft.tracksBatches}
+              onChange={(e) => set('tracksBatches', e.target.checked)}
+            />
+            <span>
+              Keep batches with expiry dates
+              <em>
+                Stock arrives against a batch number, and the till sells the earliest expiry first.
+                An expired batch is never sold.
+              </em>
+            </span>
+          </label>
+
+          <Field
+            label="Value stock by"
+            htmlFor="p-valuation"
+            hint="Used by the stock reports"
+            plainLabel
+          >
+            <select
+              id="p-valuation"
+              value={draft.valuationMethod}
+              onChange={(e) => set('valuationMethod', e.target.value as ValuationMethod)}
+            >
+              {VALUATION_METHODS.map((method) => (
+                <option key={method} value={method}>
+                  {VALUATION_LABELS[method]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </>
       )}
 
       {product && (

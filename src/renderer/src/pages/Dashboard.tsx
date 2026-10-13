@@ -106,6 +106,16 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
               </strong>
               <span className="stat-note">Before returns</span>
             </div>
+
+            {data.expiring.batches > 0 && (
+              <div className="stat">
+                <span className="stat-label">Expiring within a month</span>
+                <strong className="stat-value">{data.expiring.batches}</strong>
+                <span className="stat-note">
+                  {formatPaise(data.expiring.valuePaise)} at cost · see Inventory → Batches
+                </span>
+              </div>
+            )}
           </section>
 
           <section className="dash-cols">

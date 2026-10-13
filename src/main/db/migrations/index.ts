@@ -8,6 +8,7 @@ import { migration006 } from './006-purchases';
 import { migration007 } from './007-ledger';
 import { migration008 } from './008-users';
 import { migration009 } from './009-loyalty';
+import { migration010 } from './010-batches';
 
 /** Ordered by version. Append only — never reorder or edit an applied entry. */
 export const migrations: Migration[] = [
@@ -20,6 +21,7 @@ export const migrations: Migration[] = [
   migration007,
   migration008,
   migration009,
+  migration010,
 ];
 
 export type { Migration };

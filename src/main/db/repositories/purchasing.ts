@@ -306,6 +306,13 @@ export class PurchasingRepository extends Repository {
       .run({ ...input, companyId: this.companyId });
   }
 
+  /** Ties a stored bill line to the batch it brought in. */
+  setPurchaseItemBatch(purchaseId: string, lineNo: number, batchId: string): void {
+    this.db
+      .prepare('UPDATE purchase_items SET batch_id = ? WHERE purchase_id = ? AND line_no = ?')
+      .run(batchId, purchaseId, lineNo);
+  }
+
   insertPurchaseItem(input: Record<string, unknown>): string {
     const id = newId();
     this.db
