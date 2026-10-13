@@ -42,6 +42,13 @@ import { dashboardQuerySchema, type DashboardSummary } from './dashboard';
 import { batchInputSchema, batchQuerySchema, type Batch } from './batches';
 import { labelRequestSchema } from './labels';
 import {
+  cancelQuotationSchema,
+  quotationInputSchema,
+  quotationQuerySchema,
+  type Quotation,
+  type QuotationPage,
+} from './quotations';
+import {
   closeShiftSchema,
   customerReceiptSchema,
   openShiftSchema,
@@ -198,6 +205,16 @@ export const ipcContract = {
   'users:update': updateUserSchema,
   'users:setActive': setUserActiveSchema,
   'users:resetPassword': resetPasswordSchema,
+
+  'quotations:create': quotationInputSchema,
+  'quotations:list': quotationQuerySchema.partial(),
+  'quotations:get': z.object({ id: z.string().uuid() }),
+  'quotations:cancel': cancelQuotationSchema,
+  'quotations:document': z.object({ id: z.string().uuid() }),
+  'quotations:print': z.object({
+    id: z.string().uuid(),
+    printerName: z.string().max(200).nullable().optional(),
+  }),
 
   'labels:preview': labelRequestSchema,
   'labels:print': labelRequestSchema.extend({
@@ -433,6 +450,13 @@ export interface IpcResponseMap {
   'users:update': UserSummary;
   'users:setActive': UserSummary;
   'users:resetPassword': UserSummary;
+
+  'quotations:create': Quotation;
+  'quotations:list': QuotationPage;
+  'quotations:get': Quotation;
+  'quotations:cancel': Quotation;
+  'quotations:document': { html: string };
+  'quotations:print': PrintOutcome;
 
   'labels:preview': { html: string };
   'labels:print': PrintOutcome;

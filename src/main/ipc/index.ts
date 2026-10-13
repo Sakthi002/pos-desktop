@@ -28,6 +28,8 @@ import { LedgerService, LedgerError } from '../services/ledger-service';
 import { LoyaltyService, LoyaltyError } from '../services/loyalty-service';
 import { BatchService, BatchError } from '../services/batch-service';
 import { CounterService, CounterError } from '../services/counter-service';
+import { QuotationService, QuotationError } from '../services/quotation-service';
+import { buildQuotationHtml } from '@shared/quotation-document';
 import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 import { AuthService, AuthError } from '../services/auth-service';
@@ -244,6 +246,36 @@ export function registerIpcHandlers(): void {
   registerHandler('users:setActive', (input) => auth((service) => service.setActive(input)));
   registerHandler('users:resetPassword', (input) =>
     auth((service) => service.resetPassword(input)),
+  );
+
+  const quoting = <T>(work: (service: QuotationService) => T): T => {
+    try {
+      return work(new QuotationService(getDatabase()));
+    } catch (err) {
+      if (err instanceof QuotationError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  /** The quotation as a sheet, built here so the renderer sends no prices. */
+  const quotationDocument = (id: string): string => {
+    const db = getDatabase();
+    const settings = new SettingsService(db).require();
+    const quotation = quoting((service) => service.get(id));
+    return buildQuotationHtml({
+      quotation,
+      settings,
+      logoDataUrl: settings.shop.logoPath ? readLogo(settings.shop.logoPath) : null,
+    });
+  };
+
+  registerHandler('quotations:create', (input) => quoting((service) => service.create(input)));
+  registerHandler('quotations:list', (query) => quoting((service) => service.list(query)));
+  registerHandler('quotations:get', ({ id }) => quoting((service) => service.get(id)));
+  registerHandler('quotations:cancel', (input) => quoting((service) => service.cancel(input)));
+  registerHandler('quotations:document', ({ id }) => ({ html: quotationDocument(id) }));
+  registerHandler('quotations:print', async ({ id, printerName }) =>
+    printDocument(quotationDocument(id), 'a4', printerName ?? null, false),
   );
 
   const counter = <T>(work: (service: CounterService) => T): T => {

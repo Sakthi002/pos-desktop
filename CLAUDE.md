@@ -89,12 +89,12 @@ Invoice numbers are a local per-branch sequence and are not globally unique.
 
 ## State
 
-Phases 0-9 complete, Phase 10 except Windows packaging, and phases 11 to 16:
+Phases 0-9 complete, Phase 10 except Windows packaging, and phases 11 to 17:
 foundation, schema, settings and setup, catalogue, billing, receipts, sales
 history, inventory and returns, customers and reports, backup and audit, tests
 and documentation, suppliers and purchases, the double-entry ledger, users with
-roles and login, loyalty points, batches with expiry, and trade terms with the
-cash drawer. Multi-branch is deliberately not built; `docs/trade.md` says why.
+roles and login, loyalty points, batches with expiry, trade terms with the
+cash drawer, and quotations. Multi-branch is deliberately not built; `docs/trade.md` says why.
 
 The ledger posts itself from the documents — a sale, a credit note, a purchase,
 a debit note, a supplier payment — inside the same transaction that writes the
@@ -109,6 +109,6 @@ unverified on a real thermal printer (Phase 0b). See `PLAN.md`.
 Report definitions live in `docs/reports.md`, calculation rules in
 `docs/calculations.md`, who may do what in `docs/users.md`, how points work in `docs/loyalty.md`, how batches and expiry
 work in `docs/batches.md`, price levels, credit and the drawer in
-`docs/trade.md`, and
-what a shop
+`docs/trade.md`, how a price given before a sale works in `docs/quotations.md`,
+and what a shop
 needs when something goes wrong in `docs/operations.md`.

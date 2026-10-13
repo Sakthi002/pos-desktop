@@ -78,7 +78,16 @@ const initialsOf = (name: string): string =>
     .join('')
     .toUpperCase();
 
-export function Pos({ settings }: { settings: AppSettings }) {
+export function Pos({
+  settings,
+  quotationId = null,
+  onQuotationLoaded,
+}: {
+  settings: AppSettings;
+  /** A quotation to bill: its lines, customer and prices fill the till. */
+  quotationId?: string | null;
+  onQuotationLoaded?: () => void;
+}) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -94,6 +103,9 @@ export function Pos({ settings }: { settings: AppSettings }) {
   const [activeCategory, setActiveCategory] = useState<string>('');
   /** Bumped by anything that moves stock, so the wall re-reads it. */
   const [stockVersion, setStockVersion] = useState(0);
+  /** Set while a quoted price is being billed, so the sale can settle it. */
+  const [billingQuotation, setBillingQuotation] = useState<string | null>(null);
+  const [quotedFrom, setQuotedFrom] = useState<string | null>(null);
   const [unfiled, setUnfiled] = useState(0);
   const [grid, setGrid] = useState<Product[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
@@ -233,6 +245,52 @@ export function Pos({ settings }: { settings: AppSettings }) {
   // still in flight.
   const offer = cardHolderId && billBeforePoints > 0 && points?.card ? points : null;
 
+  // A quoted price being billed: the lines come back priced as they were
+  // promised, so the customer pays what the paper said even if the shelf price
+  // has moved since.
+  useEffect(() => {
+    if (!quotationId) return;
+    let cancelled = false;
+
+    void call('quotations:get', { id: quotationId })
+      .then(async (quotation) => {
+        if (cancelled) return;
+        const page = await call('products:search', { status: 'all', pageSize: 200 });
+        const byId = new Map(page.items.map((p) => [p.id, p]));
+
+        setCart(
+          quotation.bill.lines.flatMap((line) => {
+            const product = line.productId ? byId.get(line.productId) : undefined;
+            return product
+              ? [
+                  {
+                    product,
+                    quantityMilli: line.quantityMilli,
+                    unitPricePaise: line.unitPricePaise,
+                    discountPaise: line.totalDiscountPaise,
+                    priceOverridden: true,
+                  },
+                ]
+              : [];
+          }),
+        );
+        setPriceLevel(quotation.priceLevel);
+        if (quotation.customerId) {
+          const list = await call('customers:search', { term: quotation.customerName ?? '' });
+          const match = list.find((c) => c.id === quotation.customerId);
+          if (match) setCustomer(match);
+        }
+        setBillingQuotation(quotation.id);
+        setQuotedFrom(quotation.quotationNumber);
+        onQuotationLoaded?.();
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [quotationId, onQuotationLoaded]);
+
   // ─── Cart ─────────────────────────────────────────────────────────────────
 
   const addProduct = useCallback(
@@ -356,10 +414,13 @@ export function Pos({ settings }: { settings: AppSettings }) {
         priceLevel,
         onCredit,
         payments,
+        ...(billingQuotation ? { quotationId: billingQuotation } : {}),
       });
       setReceipt(result);
       setPaying(false);
       clearSale();
+      setBillingQuotation(null);
+      setQuotedFrom(null);
       // The sale has just taken stock off the shelf; the wall is showing what
       // was there a moment ago until it reads it again.
       setStockVersion((v) => v + 1);
@@ -548,6 +609,12 @@ export function Pos({ settings }: { settings: AppSettings }) {
             </span>
             <span className="change-link">Change</span>
           </button>
+
+          {quotedFrom && (
+            <div className="quoted-strip">
+              Billing quotation <strong>{quotedFrom}</strong> · prices as quoted
+            </div>
+          )}
 
           {priceLevel !== 'retail' || (account && account.creditLimitPaise > 0) ? (
             <div className="terms-strip">

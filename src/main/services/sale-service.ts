@@ -38,6 +38,7 @@ import { LedgerService } from './ledger-service';
 import { LoyaltyService } from './loyalty-service';
 import { BatchService } from './batch-service';
 import { CounterService, CounterError } from './counter-service';
+import { QuotationService, QuotationError } from './quotation-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
 export class SaleError extends Error {
@@ -498,6 +499,20 @@ export class SaleService {
         this.db
           .prepare('UPDATE sales SET loyalty_points_earned = ? WHERE id = ?')
           .run(earned, saleId);
+      }
+
+      // A quoted price that has now been billed: settled here, inside the
+      // sale's own transaction, so one price can never be billed twice.
+      if (parsed.quotationId) {
+        try {
+          new QuotationService(this.db).markConverted(parsed.quotationId, saleId, timestamp);
+        } catch (err) {
+          if (err instanceof QuotationError) throw new SaleError(err.code, err.message);
+          throw err;
+        }
+        this.db
+          .prepare('UPDATE sales SET quotation_id = ? WHERE id = ?')
+          .run(parsed.quotationId, saleId);
       }
 
       this.ledger.postSale(saleId);

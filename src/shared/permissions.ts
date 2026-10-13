@@ -110,6 +110,13 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'customers:update': 'customer.manage',
   'customers:setActive': 'customer.manage',
 
+  'quotations:create': 'sell',
+  'quotations:list': 'sale.view',
+  'quotations:get': 'sale.view',
+  'quotations:cancel': 'sell',
+  'quotations:document': 'sale.view',
+  'quotations:print': 'sale.view',
+
   'sales:preview': 'sell',
   'sales:create': 'sell',
   'sales:search': 'sale.view',

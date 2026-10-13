@@ -10,6 +10,7 @@ import {
   Users,
   BarChart3,
   FolderTree,
+  FileText,
   Settings as SettingsIcon,
   HardDrive,
   WifiOff,
@@ -27,6 +28,7 @@ export type Route =
   | 'dashboard'
   | 'pos'
   | 'sales'
+  | 'quotations'
   | 'products'
   | 'categories'
   | 'inventory'
@@ -55,6 +57,7 @@ const NAV: NavItem[] = [
   },
   { id: 'pos', label: 'New Sale', icon: ShoppingCart, needs: 'sell', hue: 'violet' },
   { id: 'sales', label: 'Sales', icon: Receipt, needs: 'sale.view', hue: 'sky' },
+  { id: 'quotations', label: 'Quotations', icon: FileText, needs: 'sale.view', hue: 'amber' },
   { id: 'products', label: 'Products', icon: Package, needs: 'product.manage', hue: 'teal' },
   {
     id: 'categories',

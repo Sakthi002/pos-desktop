@@ -10,6 +10,7 @@ import { Products } from './pages/Products';
 import { Categories } from './pages/Categories';
 import { Pos } from './pages/Pos';
 import { Sales } from './pages/Sales';
+import { Quotations } from './pages/Quotations';
 import { Inventory } from './pages/Inventory';
 import { Customers } from './pages/Customers';
 import { Purchases } from './pages/Purchases';
@@ -29,6 +30,7 @@ const ROUTE_PERMISSION: Partial<Record<Route, Permission>> = {
   dashboard: 'report.view',
   pos: 'sell',
   sales: 'sale.view',
+  quotations: 'sale.view',
   products: 'product.manage',
   categories: 'product.manage',
   inventory: 'report.view',
@@ -43,6 +45,7 @@ const ROUTES: Route[] = [
   'dashboard',
   'pos',
   'sales',
+  'quotations',
   'products',
   'categories',
   'inventory',
@@ -70,6 +73,8 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [route, setRoute] = useState<Route>(routeFromHash);
   const [auth, setAuth] = useState<SessionState | null>(null);
+  /** A quotation the till is about to bill, handed over when the route changes. */
+  const [billingQuotation, setBillingQuotation] = useState<string | null>(null);
 
   const navigate = useCallback((next: Route) => {
     setRoute(next);
@@ -196,8 +201,22 @@ export function App() {
         onSignedOut={setAuth}
         allowed={allowed}
       >
-        {view === 'pos' && <Pos settings={settings} />}
+        {view === 'pos' && (
+          <Pos
+            settings={settings}
+            quotationId={billingQuotation}
+            onQuotationLoaded={() => setBillingQuotation(null)}
+          />
+        )}
         {view === 'sales' && <Sales settings={settings} />}
+        {view === 'quotations' && (
+          <Quotations
+            onBill={(id) => {
+              setBillingQuotation(id);
+              navigate('pos');
+            }}
+          />
+        )}
         {view === 'products' && <Products settings={settings} />}
         {view === 'categories' && <Categories />}
         {view === 'inventory' && <Inventory />}

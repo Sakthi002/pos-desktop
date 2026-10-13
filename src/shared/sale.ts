@@ -35,6 +35,8 @@ export const saleInputSchema = z.object({
   redeemPoints: z.number().int().min(0).default(0),
   /** Which price list this bill was charged at. */
   priceLevel: z.enum(PRICE_LEVELS).default('retail'),
+  /** The quotation this bill settles, if it came from one. */
+  quotationId: z.string().uuid().nullable().optional(),
   /**
    * True when the payments deliberately fall short and the rest goes on the
    * customer's account. Without it an underpaid bill is a mistake, not credit.
