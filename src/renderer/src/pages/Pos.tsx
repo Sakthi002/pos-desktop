@@ -15,7 +15,6 @@ import {
   Package,
   PackageOpen,
   LayoutGrid,
-  WifiOff,
   Star,
 } from 'lucide-react';
 import { call } from '../lib/ipc';
@@ -76,11 +75,6 @@ const initialsOf = (name: string): string =>
     .map((word) => word[0] ?? '')
     .join('')
     .toUpperCase();
-
-const clockLabel = (date: Date): string => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
 
 export function Pos({ settings }: { settings: AppSettings }) {
   const [search, setSearch] = useState('');
@@ -404,25 +398,6 @@ export function Pos({ settings }: { settings: AppSettings }) {
   return (
     <div className="pos">
       <section className="pos-catalogue">
-        <div className="pos-topbar">
-          <span className="till-chip">
-            {new Date().toLocaleDateString(undefined, {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-            })}
-          </span>
-          <span className="till-chip mono">{clockLabel(new Date())}</span>
-          {cart.length > 0 && (
-            <span className="till-chip live">
-              <span className="dot" /> Bill in progress
-            </span>
-          )}
-          <span className="till-chip ghost">
-            <WifiOff size={13} /> Works offline · saved on this computer
-          </span>
-        </div>
-
         <div className="pos-browse">
           {/* A rail holding nothing but "All" is only a thinner screen. */}
           {categories.length > 0 && (

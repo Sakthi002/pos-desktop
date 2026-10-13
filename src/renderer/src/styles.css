@@ -71,6 +71,8 @@
   --sh-2: 0 6px 16px rgba(16, 20, 24, 0.08);
   --sh-3: 0 18px 48px rgba(16, 20, 24, 0.16);
 
+  --topbar-h: 58px;
+
   --font-ui: 'Manrope', system-ui, -apple-system, sans-serif;
   --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
 
@@ -798,11 +800,51 @@ kbd {
   color: var(--muted);
 }
 
+/* Everything to the right of the sidebar: the bar, then the screen itself. */
+.shell-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+}
+
+/* One bar across the top of every screen. On the till it carries the shop's
+   name and the way out; everywhere else, the way in. */
+.topbar {
+  flex: none;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 18px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar .brand {
+  margin-right: 10px;
+  padding-right: 14px;
+  border-right: 1px solid var(--line);
+}
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar .who {
+  margin: 0;
+  padding: 6px 8px 6px 12px;
+  min-width: 150px;
+}
+
 .content {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  max-height: 100vh;
 }
 
 /* ─── Page furniture ─────────────────────────────────────────────────────── */
@@ -1377,7 +1419,7 @@ td.actions .icon-btn.danger:disabled {
 
 .pos {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - var(--topbar-h));
   overflow: hidden;
 }
 
@@ -1386,16 +1428,6 @@ td.actions .icon-btn.danger:disabled {
   min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-.pos-topbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
-  align-items: center;
-  padding: 12px 18px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
 }
 
 .till-chip {

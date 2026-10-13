@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Receipt, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Receipt } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { formatPaise } from '@shared/money';
 import { formatQuantity, precisionFor } from '@shared/quantity';
@@ -63,11 +63,6 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
               month: 'long',
             })}
           </p>
-        </div>
-        <div className="page-actions">
-          <button className="btn-primary" onClick={() => onNavigate('pos')}>
-            <ShoppingCart size={16} /> New sale
-          </button>
         </div>
       </header>
 
