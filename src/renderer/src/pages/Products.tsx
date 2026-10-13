@@ -17,7 +17,13 @@ import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { CsvImportDialog } from '../components/CsvImportDialog';
 import { LabelDialog } from '../components/LabelDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { Category, Product, ProductQuery, Unit } from '@shared/catalogue';
+import {
+  UNCATEGORISED,
+  type Category,
+  type Product,
+  type ProductQuery,
+  type Unit,
+} from '@shared/catalogue';
 import { formatPaise } from '@shared/money';
 import { formatQuantity, precisionFor } from '@shared/quantity';
 import type { AppSettings } from '@shared/settings';
@@ -186,6 +192,8 @@ export function Products({ settings }: { settings: AppSettings }) {
               {c.name}
             </option>
           ))}
+          {/* Filing is optional, so this is how a shop finds what it skipped. */}
+          <option value={UNCATEGORISED}>No category</option>
         </select>
 
         <div className="tabs inline">

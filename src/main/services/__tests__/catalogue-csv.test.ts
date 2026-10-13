@@ -52,12 +52,12 @@ A,,Item A,Grocery,,,pc,,10.00,,5,yes,yes,,0
 B,,Item B,Beverages,,,pc,,20.00,,5,yes,yes,,0`;
 
     catalogue.importCsv({ csv, updateExisting: false });
-    expect(
-      catalogue
-        .listCategories()
-        .map((c) => c.name)
-        .sort(),
-    ).toEqual(['Beverages', 'Grocery']);
+    const names = catalogue.listCategories().map((c) => c.name);
+
+    // Beverages is a starter category for a grocery; Grocery is not, so the
+    // import had to create it rather than find it.
+    expect(names).toContain('Grocery');
+    expect(names.filter((n) => n === 'Beverages')).toHaveLength(1);
   });
 
   it('handles fractional quantities for weight units', () => {

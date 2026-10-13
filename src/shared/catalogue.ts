@@ -125,9 +125,41 @@ export type ProductUpdate = z.infer<typeof productUpdateSchema>;
 
 // ─── Queries ────────────────────────────────────────────────────────────────
 
+/**
+ * Categories a shop starts with, by the trade it said it was in.
+ *
+ * A guess, not a rule: they can be renamed, added to, or left alone, and a
+ * product never has to belong to one. The point is that a new shop opens the
+ * Categories screen and finds somewhere to put things, rather than a blank
+ * page and a decision to make before it can sell anything.
+ */
+export const STARTER_CATEGORIES: Record<string, string[]> = {
+  grocery: ['Staples', 'Oils & ghee', 'Beverages', 'Snacks', 'Household', 'Personal care'],
+  supermarket: [
+    'Staples',
+    'Fresh',
+    'Dairy',
+    'Beverages',
+    'Snacks',
+    'Household',
+    'Personal care',
+    'Frozen',
+  ],
+  textile: ['Men', 'Women', 'Kids', 'Home linen', 'Accessories'],
+  hardware: ['Tools', 'Electricals', 'Plumbing', 'Paints', 'Fasteners'],
+  electronics: ['Mobiles', 'Accessories', 'Audio', 'Appliances', 'Cables'],
+  stationery: ['Notebooks', 'Pens & pencils', 'Office supplies', 'Art supplies', 'School'],
+  // A trade we know nothing about gets nothing invented for it.
+  other: [],
+};
+
+/** The filter for products that have been left unfiled. */
+export const UNCATEGORISED = 'none' as const;
+
 export const productQuerySchema = z.object({
   search: z.string().trim().max(100).default(''),
-  categoryId: z.string().uuid().nullable().optional(),
+  /** A category's id, or 'none' for the products without one. */
+  categoryId: z.union([z.string().uuid(), z.literal(UNCATEGORISED), z.null()]).optional(),
   status: z.enum(['all', 'active', 'inactive', 'low-stock']).default('active'),
   sort: z.enum(['name', 'sku', 'price', 'stock', 'updated']).default('name'),
   direction: z.enum(['asc', 'desc']).default('asc'),

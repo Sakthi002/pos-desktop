@@ -9,6 +9,7 @@
 import type { Database } from 'better-sqlite3';
 import { appSettingsSchema, financialYearOf, type AppSettings } from '@shared/settings';
 import { stateByCode } from '@shared/states';
+import { STARTER_CATEGORIES } from '@shared/catalogue';
 import { newId, now, inTransaction } from '../db/repositories/base';
 import { SettingsService } from './settings-service';
 
@@ -119,6 +120,18 @@ export class SetupService {
            VALUES (?, ?, 'Walk-in Customer', 1, ?, ?)`,
         )
         .run(newId(), companyId, timestamp, timestamp);
+
+      // Somewhere to file things from the first day. A guess at the trade, not
+      // a rule: every one of these can be renamed or removed, and a product
+      // never has to belong to one.
+      const starters = STARTER_CATEGORIES[settings.shop.businessCategory] ?? [];
+      const insertCategory = this.db.prepare(
+        `INSERT INTO categories (id, company_id, name, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, 1, ?, ?)`,
+      );
+      for (const name of starters) {
+        insertCategory.run(newId(), companyId, name, timestamp, timestamp);
+      }
 
       const financialYear = financialYearOf(new Date(), settings.invoice.financialYearStartMonth);
       for (const kind of ['sale', 'return'] as const) {

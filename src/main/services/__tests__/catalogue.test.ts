@@ -31,15 +31,61 @@ afterEach(() => {
   db.close();
 });
 
+describe('what a new shop starts with', () => {
+  it('has categories for the trade it said it was in', () => {
+    const names = catalogue.listCategories().map((c) => c.name);
+
+    expect(names).toContain('Staples');
+    expect(names).toContain('Household');
+    expect(names.length).toBeGreaterThan(3);
+  });
+
+  it('invents nothing for a trade it was not told about', () => {
+    const other = freshDb();
+    const base = defaultSettings('Mystery Shop');
+    new SetupService(other).complete({
+      ...base,
+      shop: { ...base.shop, stateCode: '33', businessCategory: 'other' },
+    });
+
+    expect(new CatalogueService(other).listCategories()).toHaveLength(0);
+    other.close();
+  });
+
+  it('lets a product be sold with no category at all', () => {
+    const product = catalogue.create({
+      name: 'Unfiled thing',
+      unitCode: 'pc',
+      pricePaise: 5000,
+      taxRateBp: 0,
+      taxInclusive: true,
+      trackInventory: false,
+      reorderLevelMilli: 0,
+      isActive: true,
+      openingStockMilli: 0,
+    });
+
+    expect(product.categoryId).toBeNull();
+    // And it is findable as a group rather than only by typing its name.
+    const unfiled = catalogue.search({ categoryId: 'none', status: 'active' });
+    expect(unfiled.items.map((p) => p.name)).toContain('Unfiled thing');
+  });
+});
+
 describe('categories', () => {
   it('creates and lists', () => {
-    const list = catalogue.createCategory({ name: 'Grocery' });
-    expect(list.map((c) => c.name)).toEqual(['Grocery']);
+    // A new shop already has the starter categories for its trade, so the test
+    // is that the new one joins them rather than that it stands alone.
+    const before = catalogue.listCategories().length;
+    const list = catalogue.createCategory({ name: 'Pooja items' });
+
+    expect(list.map((c) => c.name)).toContain('Pooja items');
+    expect(list).toHaveLength(before + 1);
   });
 
   it('rejects a duplicate name regardless of case', () => {
-    catalogue.createCategory({ name: 'Grocery' });
-    expect(() => catalogue.createCategory({ name: 'grocery' })).toThrow(/already exists/i);
+    catalogue.createCategory({ name: 'Pooja items' });
+    expect(() => catalogue.createCategory({ name: 'pooja ITEMS' })).toThrow(/already exists/i);
   });
 
   it('deletes an unused category but deactivates one in use', () => {

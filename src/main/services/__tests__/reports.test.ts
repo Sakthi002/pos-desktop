@@ -44,7 +44,9 @@ beforeEach(() => {
   });
 
   catalogue = new CatalogueService(db);
-  const grocery = catalogue.createCategory({ name: 'Grocery' })[0]!;
+  // By name, not by position: the list comes back with the shop's starter
+  // categories in it, and the first of them is not the one just created.
+  const grocery = catalogue.createCategory({ name: 'Grocery' }).find((c) => c.name === 'Grocery')!;
   riceId = catalogue.create({
     name: 'Basmati Rice 5kg',
     sku: 'RICE5',

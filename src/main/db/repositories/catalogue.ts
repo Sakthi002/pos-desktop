@@ -5,13 +5,14 @@
  * so a balance cannot drift from the ledger that explains it.
  */
 import type { Database } from 'better-sqlite3';
-import type {
-  Category,
-  Product,
-  ProductInput,
-  ProductQuery,
-  ProductUpdate,
-  Unit,
+import {
+  UNCATEGORISED,
+  type Category,
+  type Product,
+  type ProductInput,
+  type ProductQuery,
+  type ProductUpdate,
+  type Unit,
 } from '@shared/catalogue';
 import type { ValuationMethod } from '@shared/batches';
 import { Repository, newId, now, toDbBool, fromDbBool } from './base';
@@ -212,7 +213,11 @@ export class CatalogueRepository extends Repository {
       );
       params['like'] = `%${query.search}%`;
     }
-    if (query.categoryId) {
+    if (query.categoryId === UNCATEGORISED) {
+      // Products nobody has filed yet. They are sellable and must stay
+      // reachable, so the till and the product list both offer them as a group.
+      where.push('p.category_id IS NULL');
+    } else if (query.categoryId) {
       where.push('p.category_id = @categoryId');
       params['categoryId'] = query.categoryId;
     }

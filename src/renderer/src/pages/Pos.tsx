@@ -13,6 +13,7 @@ import {
   Printer,
   Pencil,
   Package,
+  PackageOpen,
   LayoutGrid,
   WifiOff,
   Star,
@@ -20,7 +21,7 @@ import {
 import { call } from '../lib/ipc';
 import { PaymentDialog } from '../components/PaymentDialog';
 import { ReceiptPreview } from '../components/ReceiptPreview';
-import type { Category, Product } from '@shared/catalogue';
+import { UNCATEGORISED, type Category, type Product } from '@shared/catalogue';
 import type { Customer } from '@shared/customer';
 import type { Bill } from '@shared/billing';
 import type { PaymentInput, SaleReceipt } from '@shared/sale';
@@ -95,6 +96,7 @@ export function Pos({ settings }: { settings: AppSettings }) {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
+  const [unfiled, setUnfiled] = useState(0);
   const [grid, setGrid] = useState<Product[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -121,6 +123,11 @@ export function Pos({ settings }: { settings: AppSettings }) {
       .catch(() => undefined);
     void call('catalogue:listCategories')
       .then(setCategories)
+      .catch(() => undefined);
+    // A product nobody has filed is still a product to sell, so the rail
+    // offers them together rather than leaving them findable only by search.
+    void call('products:search', { status: 'active', categoryId: UNCATEGORISED, pageSize: 10 })
+      .then((page) => setUnfiled(page.total))
       .catch(() => undefined);
   }, []);
 
@@ -437,6 +444,16 @@ export function Pos({ settings }: { settings: AppSettings }) {
                   <span>{c.name}</span>
                 </button>
               ))}
+              {unfiled > 0 && (
+                <button
+                  className={activeCategory === UNCATEGORISED ? 'cat on' : 'cat'}
+                  onClick={() => setActiveCategory(UNCATEGORISED)}
+                  title={`${unfiled} product${unfiled === 1 ? '' : 's'} with no category`}
+                >
+                  <PackageOpen size={20} />
+                  <span>Unfiled</span>
+                </button>
+              )}
             </nav>
           )}
 
