@@ -69,7 +69,9 @@ export async function printDocument(
     const options: Electron.WebContentsPrintOptions = {
       silent,
       printBackground: true,
-      margins: { marginType: 'none' },
+      // A roll has no margin to give; a sheet of A4 takes the one the document
+      // asks for in @page, which is also the inset the preview shows.
+      ...(paperSize === 'a4' ? {} : { margins: { marginType: 'none' as const } }),
       ...(printerName ? { deviceName: printerName } : {}),
       ...(paperSize === 'a4'
         ? {}
@@ -113,7 +115,8 @@ export async function exportPdf(
     contents.printToPDF({
       printBackground: true,
       ...(paperSize === 'a4'
-        ? { pageSize: 'A4', margins: { top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } }
+        ? // 14mm, the same margin the document asks for and the preview shows.
+          { pageSize: 'A4', margins: { top: 0.55, bottom: 0.55, left: 0.55, right: 0.55 } }
         : {
             // Inches, as printToPDF expects.
             pageSize: { width: paperSize === '58mm' ? 2.28 : 3.15, height: 11.7 },

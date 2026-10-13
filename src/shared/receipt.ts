@@ -89,6 +89,10 @@ function a4Styles(): string {
     * { box-sizing: border-box; }
     body {
       margin: 0;
+      /* The same inset on screen as the printer leaves on paper: a preview
+         that touches the edges is not showing what will come out. Printing
+         takes it from @page instead, or the two would add up. */
+      padding: 14mm;
       font-family: 'Segoe UI', Arial, sans-serif;
       font-size: 11px;
       color: #111;
@@ -101,6 +105,7 @@ function a4Styles(): string {
     .title { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 0.08em;
              text-transform: uppercase; margin: 14px 0 10px; padding: 5px;
              border-top: 1px solid #111; border-bottom: 1px solid #111; }
+    @media print { body { padding: 0; } }
     .meta { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 12px; }
     .meta div { flex: 1; }
     .label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #666; }
