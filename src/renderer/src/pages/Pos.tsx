@@ -725,10 +725,14 @@ export function Pos({ settings }: { settings: AppSettings }) {
 
           {held.length > 0 && (
             <div className="held">
-              <h3>Held bills</h3>
+              <h3>
+                <PauseCircle size={13} /> Held bills
+                <span className="count">{held.length}</span>
+              </h3>
               {held.map((h) => (
                 <button key={h.id} className="held-item" onClick={() => resumeCart(h.id)}>
-                  <PlayCircle size={14} /> {h.label}
+                  <PlayCircle size={15} /> <strong>{h.label}</strong>
+                  <span className="resume">Resume</span>
                 </button>
               ))}
             </div>

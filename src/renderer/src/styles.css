@@ -2187,20 +2187,35 @@ td.actions .icon-btn.danger:disabled {
   font-size: 13.5px;
 }
 
+/* A held bill is unfinished business, so it wears the same amber as the Hold
+   button that made it: a customer is coming back for this. */
 .held {
   margin: 14px 8px 4px;
   padding: 12px;
-  border: 1px dashed var(--line);
+  border: 1px solid #f3dcb6;
   border-radius: var(--r);
+  background: var(--warn-tint);
 }
 
 .held h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0 0 8px;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--warn);
+}
+
+.held h3 .count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--warn);
+  color: #fff;
+  font-size: 10.5px;
+  letter-spacing: 0;
 }
 
 .held-item {
@@ -2221,9 +2236,24 @@ td.actions .icon-btn.danger:disabled {
   cursor: pointer;
 }
 
+.held-item {
+  color: var(--warn);
+}
+
+.held-item strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.held-item .resume {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
 .held-item:hover {
-  border-color: var(--accent-edge);
-  background: var(--accent-tint);
+  border-color: var(--warn);
+  background: #fdf0da;
 }
 
 /* Payment dialog */
