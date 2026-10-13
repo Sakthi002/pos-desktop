@@ -80,7 +80,9 @@ invoice numbering and receipt size. Nothing is sent anywhere.
 | `npm run package:win` | Windows installer into `release/`           |
 
 After changing the Electron or Node version, run `npm run rebuild` or
-`better-sqlite3` will fail to load with an ABI mismatch.
+`better-sqlite3` will fail to load with an ABI mismatch. That script now calls
+`electron-builder install-app-deps`, the same rebuild packaging does, so there
+is one code path rather than two.
 
 ## Installing on Ubuntu
 

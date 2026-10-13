@@ -19,7 +19,8 @@ completed **and verified**.
 | `npm run package:win` | Windows NSIS installer into `release/`      |
 
 After changing Electron or Node versions, run `npm run rebuild` or
-`better-sqlite3` will fail to load with an ABI mismatch.
+`better-sqlite3` will fail to load with an ABI mismatch. `npm test` wants the
+Node build, the app wants the Electron one; whichever ran last wins.
 
 ## Architecture
 

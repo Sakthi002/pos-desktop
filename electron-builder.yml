@@ -16,6 +16,9 @@ asarUnpack:
   - '**/node_modules/better-sqlite3/**'
 
 linux:
+  # Names the .desktop file after package.json's desktopName, so it matches the
+  # app_id Electron reports and the desktop can tie a running window to it.
+  syncDesktopName: true
   target:
     - target: AppImage
       arch: [x64]
@@ -28,10 +31,11 @@ linux:
   description: Offline billing, stock and reports for a single shop. No internet needed.
   desktop:
     entry:
-      Name: Universal POS
-      Comment: Offline billing and point of sale
+      # Name, Comment and StartupWMClass are computed: the first two from
+      # productName and description, the last from desktopName so it matches
+      # the app_id the running window actually reports. Hardcoding it here
+      # silently broke that association.
       Keywords: pos;billing;invoice;shop;retail;gst;
-      StartupWMClass: Universal POS
   artifactName: ${productName}-${version}-${arch}.${ext}
   # Placeholder: set a real address before shipping packages to anyone.
   maintainer: Vinuva <support@vinuva.in>
