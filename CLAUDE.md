@@ -106,11 +106,14 @@ Two things block a release, both needing hardware this machine does not have:
 the Windows installer has never been built or installed, and printing is
 unverified on a real thermal printer (Phase 0b). See `PLAN.md`.
 
-Report definitions live in `docs/reports.md`, calculation rules in
-`docs/calculations.md`, who may do what in `docs/users.md`, how points work in `docs/loyalty.md`, how batches and expiry
-work in `docs/batches.md`, price levels, credit and the drawer in
-`docs/trade.md`, how a price given before a sale works in `docs/quotations.md`,
-how a bill is dressed in `docs/templates.md`, what a shop asks a supplier for
-in `docs/purchase-orders.md`,
-and what a shop
-needs when something goes wrong in `docs/operations.md`.
+`docs/README.md` is the way into the documentation: the whole app in
+`docs/architecture.md`, every path through it in `docs/flows.md`, where each
+feature lives in `docs/modules.md`, and how to show it to a shop in
+`docs/demo.md`. Beside those, the feature records — report definitions in
+`docs/reports.md`, calculation rules in `docs/calculations.md`, who may do
+what in `docs/users.md`, points in `docs/loyalty.md`, batches and expiry in
+`docs/batches.md`, price levels, credit and the drawer in `docs/trade.md`, a
+price given before a sale in `docs/quotations.md`, what a shop asks a supplier
+for in `docs/purchase-orders.md`, how a bill is dressed in
+`docs/templates.md`, and what a shop needs when something goes wrong in
+`docs/operations.md`.
