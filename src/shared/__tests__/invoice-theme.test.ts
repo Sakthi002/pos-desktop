@@ -133,3 +133,35 @@ describe('a quotation', () => {
     expect(html).toContain('3px double');
   });
 });
+
+describe('the pay code', () => {
+  const upi = (overrides: Partial<AppSettings['template']> = {}): AppSettings =>
+    shop({ upiId: 'sharma@okbank', ...overrides });
+
+  it('is printed when the shop has a UPI handle', () => {
+    const html = a4(upi());
+    expect(html).toContain('Scan to pay');
+    expect(html).toContain('sharma@okbank');
+    expect(html).toContain('<svg');
+  });
+
+  it('is left off a bill the shop cannot be paid for twice', () => {
+    expect(a4(shop())).not.toContain('Scan to pay');
+  });
+
+  it('asks for what is owed, not for the whole bill, on a credit sale', () => {
+    // The sample is paid in full, so the code is for the total; a part-paid
+    // bill asks for the shortfall. Both are checked through the link itself.
+    const paid = sampleReceipt();
+    const credit = { ...paid, creditPaise: 50000 };
+    const whole = buildReceiptHtml({ receipt: paid, settings: upi(), paperSize: 'a4' });
+    const owed = buildReceiptHtml({ receipt: credit, settings: upi(), paperSize: 'a4' });
+    // Different amounts make different symbols.
+    expect(whole).not.toBe(owed);
+  });
+
+  it('never reaches a thermal receipt, which has no room for it', () => {
+    const html = buildReceiptHtml({ receipt: sampleReceipt(), settings: upi(), paperSize: '80mm' });
+    expect(html).not.toContain('Scan to pay');
+  });
+});

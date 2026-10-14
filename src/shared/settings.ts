@@ -118,6 +118,19 @@ export const templateSchema = z.object({
   terms: z.string().trim().max(500).optional(),
   /** Bank account or UPI line, for customers who pay later. */
   bankDetails: z.string().trim().max(300).optional(),
+  /**
+   * The shop's UPI handle. With one, an A4 bill carries a code the customer
+   * scans to pay the exact amount — the difference between a bill that asks
+   * to be paid and one that asks to be typed out.
+   */
+  upiId: z
+    .string()
+    .trim()
+    .max(120)
+    .refine((value) => value === '' || /^[\w.-]{2,}@[\w.-]{2,}$/.test(value), {
+      message: 'A UPI id looks like name@bank',
+    })
+    .optional(),
 });
 
 export const paymentSchema = z.object({

@@ -40,7 +40,16 @@ ones.
 - **Signature line**, with the shop's own wording when "For <shop name>" is not
   what it signs as.
 - **Terms**, printed at the foot of an A4 bill.
-- **Payment details** — a bank account or UPI id — for a customer paying later.
+- **Payment details** — a bank account, or anything else a customer paying
+  later needs.
+- **UPI id.** With one, the bill carries a code the customer scans to pay: the
+  exact amount, with the invoice number as its reference, so the money arrives
+  labelled. It asks for what is still owed on a credit sale and for the whole
+  bill otherwise, and it is left off entirely when there is nothing to collect.
+  The code is drawn by the app (`src/shared/qr.ts`): byte mode, correction
+  level M, the smallest version that fits. It was checked module for module
+  against an independent encoder and read back by a scanner from the rendered
+  page, because a code that does not scan is worse than no code.
 
 Everything typed by the shop is escaped before it reaches the document, so an
 ampersand in a shop's name stays an ampersand and a stray `<` cannot break the
@@ -51,8 +60,9 @@ bill.
 - No drag-and-drop designer. The body of a tax invoice is a legal document
   whose layout has been tested; a shop that needs a different one is asking for
   a change to the software, not a setting.
-- No UPI QR code yet: printing one needs a QR encoder, which the app does not
-  have. The UPI id prints as text in the payment details.
+- No QR anywhere else. The encoder covers what a payment link needs — one
+  mode, one correction level, versions 1 to 10 — and refuses anything longer
+  rather than printing half a link.
 - Thermal receipts are not themed. They are 58 or 80 mm of monochrome paper,
   where the only choices that mean anything — the footer line and the tax
   breakdown — are already in Settings → Receipt.

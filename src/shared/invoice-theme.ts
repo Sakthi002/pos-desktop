@@ -9,6 +9,7 @@
  * the law requires.
  */
 import type { AppSettings, InvoiceTheme } from './settings';
+import { qrSvg, upiLink } from './qr';
 
 export const THEME_LABELS: Record<InvoiceTheme, string> = {
   classic: 'Classic',
@@ -36,6 +37,15 @@ function tint(accent: string, amount: number): string {
  * The stylesheet for a theme. Appended after the shared styles, so each rule
  * here is a deliberate override of the plain document underneath.
  */
+/** The pay code's own styles, the same under every theme. */
+export function payCodeCss(): string {
+  return `
+    .paycode { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+    .paycode svg { display: block; }
+    .paycode .label { font-weight: 700; color: #111; }
+  `;
+}
+
 export function themeCss(settings: AppSettings): string {
   const { theme, accent } = settings.template;
   const pale = tint(accent, 0.88);
@@ -92,10 +102,47 @@ export function themeCss(settings: AppSettings): string {
   `;
 }
 
+/**
+ * The code a customer scans to pay. Drawn only when the shop has given a UPI
+ * handle and the bill has something to collect — a code on a bill that is
+ * already paid invites a second payment.
+ */
+function payCode(
+  settings: AppSettings,
+  amountPaise: number,
+  reference: string,
+  escape: (v: string) => string,
+): string {
+  const upi = settings.template.upiId;
+  if (!upi || amountPaise <= 0) return '';
+
+  const link = upiLink({
+    vpa: upi,
+    payee: settings.shop.name,
+    amountPaise,
+    note: reference,
+  });
+
+  return `<div class="paycode">
+    ${qrSvg(link, 26)}
+    <span class="label">Scan to pay</span>
+    <span class="muted">${escape(upi)}</span>
+  </div>`;
+}
+
 /** The blocks a shop can add at the foot of an A4 bill. */
-export function footBlocks(settings: AppSettings, escape: (v: string) => string): string {
+export function footBlocks(
+  settings: AppSettings,
+  escape: (v: string) => string,
+  pay?: { amountPaise: number; reference: string },
+): string {
   const { template, shop } = settings;
   const parts: string[] = [];
+
+  if (pay) {
+    const code = payCode(settings, pay.amountPaise, pay.reference, escape);
+    if (code) parts.push(code);
+  }
 
   if (template.bankDetails)
     parts.push(`<div class="bank"><span class="label">Payment details</span>

@@ -632,9 +632,22 @@ export function Settings({
             </Field>
 
             <Field
+              label="UPI id"
+              htmlFor="s-upi"
+              hint="With one, the bill carries a code the customer scans to pay the exact amount"
+            >
+              <input
+                id="s-upi"
+                value={draft.template.upiId ?? ''}
+                placeholder="sharma@okbank"
+                onChange={(e) => patch('template', { upiId: e.target.value.trim() })}
+              />
+            </Field>
+
+            <Field
               label="Payment details"
               htmlFor="s-bank"
-              hint="Bank account or UPI id, for a customer paying later"
+              hint="Bank account or anything else a customer paying later needs"
             >
               <textarea
                 id="s-bank"

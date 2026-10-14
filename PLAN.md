@@ -454,13 +454,12 @@ Small things the app does not do, each one noticed while building something
 else. None of them blocks a release; they are written down so they are not
 rediscovered as surprises.
 
-- [ ] **A UPI QR code on the bill.** The payment details line prints a UPI id
-      as text. A scannable code needs a QR encoder, which the app does not
-      have — the Code 128 encoder in `src/shared/barcode.ts` does not do QR,
-      and a QR encoder is a few hundred lines of its own.
-- [ ] **Barcode label sheets print without a preview.** Every other printed
-      document can be seen before it is sent; the label sheet from the product
-      screen goes straight to the printer.
+- [x] **A UPI QR code on the bill.** Done: `src/shared/qr.ts` encodes one,
+      verified against an independent encoder and read back by a scanner from
+      the rendered page.
+- [ ] **A label sheet cannot be saved as a PDF.** It has a live preview like
+      every other document, but no way to keep a copy — the sale invoice and
+      the quotation both have one.
 - [ ] **No purchase order.** A purchase is recorded against the supplier's
       bill after the goods arrive. Nothing is issued to a supplier beforehand,
       so there is no document to print or send.

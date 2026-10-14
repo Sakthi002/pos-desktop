@@ -15,7 +15,7 @@ import type { AppSettings } from './settings';
 import { formatPaise } from './money';
 import { formatQuantity, precisionFor } from './quantity';
 import { stateByCode } from './states';
-import { footBlocks, themeCss } from './invoice-theme';
+import { footBlocks, payCodeCss, themeCss } from './invoice-theme';
 
 export type PaperSize = AppSettings['receipt']['paperSize'];
 
@@ -135,6 +135,7 @@ function a4Styles(settings: AppSettings): string {
     .sign { margin-top: 14mm; text-align: right; }
     .sign span { display: inline-block; padding-top: 6px; border-top: 1px solid #999;
                  min-width: 50mm; }
+    ${payCodeCss()}
     ${themeCss(settings)}
   `;
 }
@@ -381,7 +382,12 @@ function renderA4(input: ReceiptRenderInput): string {
     </table>
   </div>
 
-  ${footBlocks(settings, esc)}
+  ${footBlocks(settings, esc, {
+    // What is still to collect, or the whole bill when it was paid at the
+    // counter and the customer wants to pay by phone after all.
+    amountPaise: receipt.creditPaise > 0 ? receipt.creditPaise : bill.totalPaise,
+    reference: receipt.invoiceNumber,
+  })}
 
   <div class="foot">
     ${settings.receipt.footerText ? `${esc(settings.receipt.footerText)}<br>` : ''}
