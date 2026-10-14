@@ -112,7 +112,7 @@ export function WhatsAppDialog({
 
       {draft && (
         <>
-          <div className="dash-row" style={{ marginBottom: 16 }}>
+          <div className="stat-pair">
             <div className="stat">
               <div className="stat-text">
                 <span className="stat-label">{kind === 'statement' ? 'Account' : 'Document'}</span>

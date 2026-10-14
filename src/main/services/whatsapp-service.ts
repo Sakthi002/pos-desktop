@@ -64,9 +64,17 @@ async function renderPng(html: string, widthPx: number): Promise<Buffer> {
   try {
     await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
-    const measured = (await window.webContents.executeJavaScript(
-      'Math.ceil(document.documentElement.scrollHeight)',
-    )) as unknown;
+    // A page that will not answer is not worth failing a send over: a full
+    // sheet's height is a reasonable guess and the PDF carries the document
+    // in any case.
+    let measured: unknown = null;
+    try {
+      measured = await window.webContents.executeJavaScript(
+        'Math.ceil(document.documentElement.scrollHeight)',
+      );
+    } catch {
+      measured = null;
+    }
     const height = typeof measured === 'number' && measured > 0 ? Math.round(measured) : 1123;
 
     window.setContentSize(widthPx, Math.min(Math.max(height, 200), MAX_HEIGHT_PX));
@@ -99,7 +107,8 @@ function nextPaint(window: BrowserWindow): Promise<void> {
 
 export interface ShareResult {
   folder: string;
-  imagePath: string;
+  /** Null when the picture could not be rendered; the PDF is always there. */
+  imagePath: string | null;
   pdfPath: string;
   link: string;
   /** False when the clipboard refused the picture; the file is still there. */
@@ -131,27 +140,28 @@ export async function shareOnWhatsapp(input: {
   const imagePath = join(folder, `${base}.png`);
   const pdfPath = join(folder, `${base}.pdf`);
 
+  // The PDF is the document the shop attaches, so it is the one thing here
+  // that must work. The picture is a convenience — pasted into a chat when a
+  // photo will do — and a send is not failed for want of it.
   const widthPx = paperSize === 'a4' ? PAGE_WIDTH_PX : paperSize === '58mm' ? 384 : 512;
-  const [png, pdf] = await Promise.all([
-    renderPng(input.html, widthPx),
-    renderPdf(input.html, paperSize),
-  ]);
+  const picture = renderPng(input.html, widthPx).catch(() => null);
 
-  await writeFile(imagePath, png);
-  await writeFile(pdfPath, pdf);
+  await writeFile(pdfPath, await renderPdf(input.html, paperSize));
 
+  const png = await picture;
   let imageCopied = false;
-  try {
-    if (png.length > 0) {
+  if (png && png.length > 0) {
+    await writeFile(imagePath, png);
+    try {
       await clipboard.write([
         new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) }),
       ]);
       imageCopied = true;
+    } catch {
+      // A clipboard that will not take a picture is a nuisance, not a
+      // failure: the file is on disk and can be attached by hand.
+      imageCopied = false;
     }
-  } catch {
-    // A clipboard that will not take a picture is a nuisance, not a failure:
-    // the file is on disk and can be attached by hand.
-    imageCopied = false;
   }
 
   // Nothing can attach a file to WhatsApp from outside it — a wa.me link
@@ -171,7 +181,15 @@ export async function shareOnWhatsapp(input: {
     opened = false;
   }
 
-  return { folder, imagePath, pdfPath, link: input.link, imageCopied, opened, revealed };
+  return {
+    folder,
+    imagePath: png ? imagePath : null,
+    pdfPath,
+    link: input.link,
+    imageCopied,
+    opened,
+    revealed,
+  };
 }
 
 /** Shows the saved files in the shop's own file manager. */

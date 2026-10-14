@@ -401,7 +401,8 @@ export interface WhatsappDraft {
 /** Where the two files landed, and whether the hand-off worked. */
 export interface WhatsappSend {
   folder: string;
-  imagePath: string;
+  /** Null when only the PDF could be made; it is the one that is attached. */
+  imagePath: string | null;
   pdfPath: string;
   link: string;
   imageCopied: boolean;

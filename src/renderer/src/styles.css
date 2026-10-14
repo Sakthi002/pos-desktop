@@ -2824,6 +2824,16 @@ td.actions .icon-btn.danger:disabled {
   margin-bottom: 16px;
 }
 
+/* Two small summary cards side by side inside a dialog. The dashboard grid
+   asks for 245px a card, which a 560px dialog loses the moment a scrollbar
+   appears; here there are always two and they always share the width. */
+.stat-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
 .stat {
   position: relative;
   display: flex;
