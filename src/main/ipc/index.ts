@@ -545,6 +545,10 @@ export function registerIpcHandlers(): void {
 
   registerHandler('labels:preview', (request) => ({ html: labelSheet(request) }));
 
+  registerHandler('labels:exportPdf', async (request) =>
+    exportPdf(focusedWindow(), labelSheet(request), 'a4', 'shelf-labels.pdf'),
+  );
+
   registerHandler('labels:print', async ({ printerName, ...request }) =>
     printDocument(labelSheet(request), 'a4', printerName ?? null, false),
   );

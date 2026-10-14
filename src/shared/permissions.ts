@@ -97,6 +97,7 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'loyalty:adjust': 'books.post',
 
   'labels:preview': 'product.manage',
+  'labels:exportPdf': 'product.manage',
   'labels:print': 'product.manage',
 
   'counter:account': 'sale.view',

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Printer, Tag } from 'lucide-react';
+import { FileText, Printer, Tag } from 'lucide-react';
 import { Modal } from './Modal';
 import { Field } from './Field';
 import { call } from '../lib/ipc';
@@ -80,6 +80,26 @@ export function LabelDialog({ products, onClose }: { products: Product[]; onClos
     }
   }
 
+  async function savePdf() {
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await call('labels:exportPdf', {
+        items,
+        sheet,
+        priceLevel,
+        showPrice: true,
+        showMrp,
+        skip,
+      });
+      if (saved.saved) setMessage('PDF saved.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const total = items.reduce((a, i) => a + i.count, 0);
   // Derived, so a sheet is never shown for a selection that has emptied.
   const preview = items.length === 0 ? '' : html;
@@ -93,6 +113,13 @@ export function LabelDialog({ products, onClose }: { products: Product[]; onClos
         <>
           <button className="btn-secondary" onClick={onClose} disabled={busy}>
             Close
+          </button>
+          <button
+            className="btn-info"
+            onClick={() => void savePdf()}
+            disabled={busy || total === 0}
+          >
+            <FileText size={15} /> Save PDF
           </button>
           <button
             className="btn-primary"

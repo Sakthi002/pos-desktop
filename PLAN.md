@@ -457,9 +457,8 @@ rediscovered as surprises.
 - [x] **A UPI QR code on the bill.** Done: `src/shared/qr.ts` encodes one,
       verified against an independent encoder and read back by a scanner from
       the rendered page.
-- [ ] **A label sheet cannot be saved as a PDF.** It has a live preview like
-      every other document, but no way to keep a copy — the sale invoice and
-      the quotation both have one.
+- [x] **A label sheet cannot be saved as a PDF.** Done: the dialog has Save
+      PDF beside Print, through the same export the invoice uses.
 - [ ] **No purchase order.** A purchase is recorded against the supplier's
       bill after the goods arrive. Nothing is issued to a supplier beforehand,
       so there is no document to print or send.

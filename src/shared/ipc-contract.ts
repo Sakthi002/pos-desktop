@@ -224,6 +224,7 @@ export const ipcContract = {
   'quotations:exportPdf': z.object({ id: z.string().uuid() }),
 
   'labels:preview': labelRequestSchema,
+  'labels:exportPdf': labelRequestSchema,
   'labels:print': labelRequestSchema.extend({
     printerName: z.string().max(200).nullable().optional(),
   }),
@@ -468,6 +469,7 @@ export interface IpcResponseMap {
   'quotations:exportPdf': SavedFile;
 
   'labels:preview': { html: string };
+  'labels:exportPdf': SavedFile;
   'labels:print': PrintOutcome;
 
   'counter:account': CustomerAccount;
