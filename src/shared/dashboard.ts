@@ -37,6 +37,13 @@ export interface DashboardSummary {
   today: DashboardTakings;
   /** The same figures for the seven days ending today, for context. */
   week: DashboardTakings;
+  /**
+   * The two spans before those, so a figure can be shown against the one it
+   * should be read against. A shop comparing today with last week's total
+   * would learn nothing; today against yesterday it can act on.
+   */
+  yesterday: DashboardTakings;
+  previousWeek: DashboardTakings;
   methods: DashboardMethod[];
   lowStock: LowStockItem[];
   recentSales: SaleSummary[];

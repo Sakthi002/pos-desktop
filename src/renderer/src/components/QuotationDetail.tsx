@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Printer, ShoppingCart, Ban } from 'lucide-react';
 import { Modal } from './Modal';
-import { Field } from './Field';
+import { ConfirmDialog } from './ConfirmDialog';
+import { QuotationPreview } from './QuotationPreview';
 import { call } from '../lib/ipc';
 import { formatPaise } from '@shared/money';
 import { formatQuantity, precisionFor } from '@shared/quantity';
@@ -32,7 +33,7 @@ export function QuotationDetail({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [reason, setReason] = useState('');
+  const [previewing, setPreviewing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,24 +49,11 @@ export function QuotationDetail({
     };
   }, [quotationId]);
 
-  async function print() {
+  async function cancel(reason: string) {
     setBusy(true);
     setError(null);
     try {
-      const outcome = await call('quotations:print', { id: quotationId, printerName: null });
-      if (!outcome.printed && outcome.reason) setError(outcome.reason);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function cancel() {
-    setBusy(true);
-    setError(null);
-    try {
-      setQuotation(await call('quotations:cancel', { id: quotationId, reason: reason.trim() }));
+      setQuotation(await call('quotations:cancel', { id: quotationId, reason }));
       setCancelling(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -75,6 +63,30 @@ export function QuotationDetail({
   }
 
   const open = quotation?.status === 'open';
+
+  if (cancelling && quotation)
+    return (
+      <ConfirmDialog
+        title={`Cancel quotation ${quotation.quotationNumber}`}
+        message="It stays on the list as cancelled, with the reason beside it, and it can never be billed. A new quotation is how a price is given again."
+        confirmLabel="Cancel the quotation"
+        destructive
+        busy={busy}
+        reasonLabel="Why is it being cancelled"
+        reasonPlaceholder="Customer bought elsewhere"
+        onConfirm={(reason) => void cancel(reason)}
+        onCancel={() => setCancelling(false)}
+      />
+    );
+
+  if (previewing && quotation)
+    return (
+      <QuotationPreview
+        quotationId={quotationId}
+        quotationNumber={quotation.quotationNumber}
+        onClose={() => setPreviewing(false)}
+      />
+    );
 
   return (
     <Modal
@@ -91,7 +103,11 @@ export function QuotationDetail({
               <Ban size={15} /> Cancel it
             </button>
           )}
-          <button className="btn-info" onClick={() => void print()} disabled={busy || !quotation}>
+          <button
+            className="btn-info"
+            onClick={() => setPreviewing(true)}
+            disabled={busy || !quotation}
+          >
             <Printer size={15} /> Print
           </button>
           {open && (
@@ -132,31 +148,6 @@ export function QuotationDetail({
               )}
             </div>
           </div>
-
-          {cancelling && (
-            <div className="panel-card" style={{ padding: 14, marginBottom: 14 }}>
-              <Field label="Why is it being cancelled" htmlFor="q-cancel" required>
-                <input
-                  id="q-cancel"
-                  value={reason}
-                  placeholder="Customer bought elsewhere"
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </Field>
-              <div className="page-actions">
-                <button className="btn-secondary" onClick={() => setCancelling(false)}>
-                  Keep it
-                </button>
-                <button
-                  className="btn-danger"
-                  onClick={() => void cancel()}
-                  disabled={busy || reason.trim().length < 3}
-                >
-                  Cancel this quotation
-                </button>
-              </div>
-            </div>
-          )}
 
           <div className="table-wrap">
             <table className="data">

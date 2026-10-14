@@ -13,6 +13,8 @@ import { pickLogo } from '../services/logo-service';
 import { openCsv, saveCsv, pickDirectory, pickBackupFile } from '../services/file-service';
 import { listPrinters, printDocument, exportPdf } from '../services/print-service';
 import { buildReceiptHtml, type PaperSize } from '@shared/receipt';
+import { sampleReceipt } from '@shared/sample-bill';
+import type { AppSettings } from '@shared/settings';
 import { buildLabelsHtml, type LabelRequest } from '@shared/labels';
 import { readLogo } from '../services/logo-service';
 import { CatalogueService, CatalogueError } from '../services/catalogue-service';
@@ -68,6 +70,31 @@ export function registerIpcHandlers(): void {
     const settings = new SettingsService(getDatabase()).get();
     const path = settings?.shop.logoPath;
     return { dataUrl: path ? readLogo(path) : null };
+  });
+
+  /**
+   * The shop's template on a bill that never happened, so a theme can be seen
+   * before it is saved. The sample is built here from the same engine the till
+   * uses, and the draft template is validated like any other settings patch.
+   */
+  registerHandler('settings:templatePreview', (draft) => {
+    const settings = new SettingsService(getDatabase()).get();
+    if (!settings) throw new IpcError('SETUP_INCOMPLETE', 'Complete setup first.');
+
+    // Only the keys the renderer actually sent: a partial schema re-applies
+    // every default for the rest, which would reset what it did not mention.
+    const sent = Object.fromEntries(
+      Object.entries(draft).filter(([, value]) => value !== undefined),
+    );
+    const preview: AppSettings = { ...settings, template: { ...settings.template, ...sent } };
+    return {
+      html: buildReceiptHtml({
+        receipt: sampleReceipt(),
+        settings: preview,
+        paperSize: 'a4',
+        logoDataUrl: settings.shop.logoPath ? readLogo(settings.shop.logoPath) : null,
+      }),
+    };
   });
 
   registerHandler('settings:update', (patch) => {
@@ -258,25 +285,32 @@ export function registerIpcHandlers(): void {
   };
 
   /** The quotation as a sheet, built here so the renderer sends no prices. */
-  const quotationDocument = (id: string): string => {
+  const quotationDocument = (id: string): { html: string; quotationNumber: string } => {
     const db = getDatabase();
     const settings = new SettingsService(db).require();
     const quotation = quoting((service) => service.get(id));
-    return buildQuotationHtml({
-      quotation,
-      settings,
-      logoDataUrl: settings.shop.logoPath ? readLogo(settings.shop.logoPath) : null,
-    });
+    return {
+      html: buildQuotationHtml({
+        quotation,
+        settings,
+        logoDataUrl: settings.shop.logoPath ? readLogo(settings.shop.logoPath) : null,
+      }),
+      quotationNumber: quotation.quotationNumber,
+    };
   };
 
   registerHandler('quotations:create', (input) => quoting((service) => service.create(input)));
   registerHandler('quotations:list', (query) => quoting((service) => service.list(query)));
   registerHandler('quotations:get', ({ id }) => quoting((service) => service.get(id)));
   registerHandler('quotations:cancel', (input) => quoting((service) => service.cancel(input)));
-  registerHandler('quotations:document', ({ id }) => ({ html: quotationDocument(id) }));
+  registerHandler('quotations:document', ({ id }) => ({ html: quotationDocument(id).html }));
   registerHandler('quotations:print', async ({ id, printerName }) =>
-    printDocument(quotationDocument(id), 'a4', printerName ?? null, false),
+    printDocument(quotationDocument(id).html, 'a4', printerName ?? null, false),
   );
+  registerHandler('quotations:exportPdf', async ({ id }) => {
+    const sheet = quotationDocument(id);
+    return exportPdf(focusedWindow(), sheet.html, 'a4', `${sheet.quotationNumber}.pdf`);
+  });
 
   const counter = <T>(work: (service: CounterService) => T): T => {
     try {
@@ -561,6 +595,7 @@ export function registerIpcHandlers(): void {
   registerHandler('dialog:pickLogo', async () => {
     return pickLogo(focusedWindow());
   });
+
 
   registerHandler('dialog:pickBackupDirectory', async () => pickDirectory(focusedWindow()));
   registerHandler('dialog:pickBackupFile', async () => pickBackupFile(focusedWindow()));

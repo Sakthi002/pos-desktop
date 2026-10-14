@@ -7,9 +7,11 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   width?: number;
+  /** Marks a dialog whose action cannot be taken back. */
+  tone?: 'danger' | undefined;
 }
 
-export function Modal({ title, onClose, children, footer, width = 560 }: ModalProps) {
+export function Modal({ title, onClose, children, footer, width = 560, tone }: ModalProps) {
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export function Modal({ title, onClose, children, footer, width = 560 }: ModalPr
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div
-        className="modal"
+        className={tone === 'danger' ? 'modal modal-danger' : 'modal'}
         style={{ width }}
         role="dialog"
         aria-modal="true"

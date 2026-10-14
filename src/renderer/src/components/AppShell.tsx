@@ -132,13 +132,15 @@ export function AppShell({
     return () => clearInterval(timer);
   }, []);
 
-  // Re-read when the path changes, so replacing the logo in Settings shows
-  // here without a restart.
+  // Re-read whenever settings are saved, so replacing the logo shows here
+  // without a restart. Watching the path alone is not enough: a logo is always
+  // stored as assets/logo.png, so swapping one PNG for another leaves the path
+  // identical while the file behind it is a different picture.
   useEffect(() => {
     void call('settings:logo')
       .then((result) => setLogo(result.dataUrl))
       .catch(() => setLogo(null));
-  }, [settings.shop.logoPath]);
+  }, [settings]);
 
   // Billing gets the whole window. Everything else keeps the sidebar, and the
   // bar at the top is how you cross between the two.

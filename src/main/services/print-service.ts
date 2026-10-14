@@ -10,6 +10,7 @@ import { writeFile } from 'node:fs/promises';
 import { BrowserWindow, app, dialog } from 'electron';
 import type { PaperSize } from '@shared/receipt';
 import type { PrinterInfo, PrintOutcome } from '@shared/ipc-contract';
+import { readablePrintFailure } from './print-failure';
 
 /** Physical widths in microns, for Electron's pageSize. */
 const THERMAL_WIDTH_MICRONS: Record<string, number> = {
@@ -85,14 +86,24 @@ export async function printDocument(
     };
 
     return new Promise<PrintOutcome>((resolve) => {
-      contents.print(options, (success, failureReason) => {
-        resolve(
-          success
-            ? { printed: true, reason: null }
-            : // Cancelling the dialog arrives here too, which is not an error.
-              { printed: false, reason: failureReason || 'Printing was cancelled.' },
-        );
-      });
+      const failed = (reason: unknown): void => {
+        resolve({
+          printed: false,
+          reason: readablePrintFailure(reason instanceof Error ? reason.message : String(reason)),
+        });
+      };
+
+      try {
+        contents.print(options, (success, failureReason) => {
+          // Cancelling the dialog arrives here too, which is not an error.
+          if (success) resolve({ printed: true, reason: null });
+          else failed(failureReason ?? '');
+        });
+      } catch (err) {
+        // Electron throws rather than calling back when it cannot reach the
+        // print backend at all; a counter should still get a readable line.
+        failed(err);
+      }
     });
   });
 }

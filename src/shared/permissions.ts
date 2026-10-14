@@ -72,6 +72,7 @@ export function can(role: Role, permission: Permission): boolean {
  */
 export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'settings:update': 'settings.manage',
+  'settings:templatePreview': 'settings.manage',
   'dialog:pickLogo': 'settings.manage',
   'audit:list': 'settings.manage',
 
@@ -116,6 +117,7 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'quotations:cancel': 'sell',
   'quotations:document': 'sale.view',
   'quotations:print': 'sale.view',
+  'quotations:exportPdf': 'sale.view',
 
   'sales:preview': 'sell',
   'sales:create': 'sell',

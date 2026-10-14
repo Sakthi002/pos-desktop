@@ -15,6 +15,7 @@ import type { AppSettings } from './settings';
 import { formatPaise } from './money';
 import { formatQuantity, precisionFor } from './quantity';
 import { stateByCode } from './states';
+import { footBlocks, themeCss } from './invoice-theme';
 
 export type PaperSize = AppSettings['receipt']['paperSize'];
 
@@ -83,7 +84,7 @@ function thermalStyles(width: string): string {
   `;
 }
 
-function a4Styles(): string {
+function a4Styles(settings: AppSettings): string {
   return `
     @page { size: A4; margin: 14mm; }
     * { box-sizing: border-box; }
@@ -127,6 +128,14 @@ function a4Styles(): string {
                font-size: 10px; font-weight: 700; margin-bottom: 8px; }
     .voided { display: block; border: 2px solid #111; padding: 5px 8px; text-align: center;
               font-size: 13px; font-weight: 700; letter-spacing: 0.14em; margin-bottom: 10px; }
+    .extras { display: flex; gap: 16px; align-items: flex-start; margin-top: 14px; }
+    .extras > div { flex: 1; font-size: 10px; }
+    .extras .label { display: block; font-size: 9px; text-transform: uppercase;
+                     letter-spacing: 0.06em; color: #666; margin-bottom: 2px; }
+    .sign { margin-top: 14mm; text-align: right; }
+    .sign span { display: inline-block; padding-top: 6px; border-top: 1px solid #999;
+                 min-width: 50mm; }
+    ${themeCss(settings)}
   `;
 }
 
@@ -240,6 +249,10 @@ function renderA4(input: ReceiptRenderInput): string {
   // A shop that charges no tax prints no tax columns: no HSN, no rate, no tax,
   // and the value column is just the value.
   const taxed = settings.tax.registered;
+  // Two columns a shop may not want: an HSN code its customers never read, and
+  // a discount column on bills that never carry one.
+  const hsn = taxed && settings.template.showHsn;
+  const discount = settings.template.showDiscount;
 
   const rows = bill.lines
     .map((line) => {
@@ -247,10 +260,10 @@ function renderA4(input: ReceiptRenderInput): string {
       return `<tr>
         <td>${line.lineNo}</td>
         <td>${esc(line.name)}${line.sku ? `<br><span class="muted">${esc(line.sku)}</span>` : ''}</td>
-        ${taxed ? `<td>${esc(line.hsn ?? '')}</td>` : ''}
+        ${hsn ? `<td>${esc(line.hsn ?? '')}</td>` : ''}
         <td class="num">${formatQuantity(line.quantityMilli, precision)} ${esc(line.unitCode)}</td>
         <td class="num">${formatPaise(line.unitPricePaise, false)}</td>
-        <td class="num">${line.totalDiscountPaise > 0 ? formatPaise(line.totalDiscountPaise, false) : '—'}</td>
+        ${discount ? `<td class="num">${line.totalDiscountPaise > 0 ? formatPaise(line.totalDiscountPaise, false) : '—'}</td>` : ''}
         <td class="num">${formatPaise(line.taxablePaise, false)}</td>
         ${
           taxed
@@ -296,7 +309,7 @@ function renderA4(input: ReceiptRenderInput): string {
 
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>${esc(receipt.invoiceNumber)}</title>
-<style>${a4Styles()}</style></head>
+<style>${a4Styles(settings)}</style></head>
 <body>
   ${isVoided ? `<div class="voided">VOIDED — NOT A VALID INVOICE · ${esc(receipt.voidReason)}</div>` : ''}
   ${input.isReprint ? '<div class="reprint">REPRINT</div>' : ''}
@@ -305,7 +318,7 @@ function renderA4(input: ReceiptRenderInput): string {
       <p class="shop-name">${esc(settings.shop.name)}</p>
       <div class="muted">${shopHeaderLines(settings).map(esc).join('<br>')}</div>
     </div>
-    ${input.logoDataUrl ? `<img class="logo" src="${input.logoDataUrl}" alt="">` : ''}
+    ${settings.template.showLogo && input.logoDataUrl ? `<img class="logo" src="${input.logoDataUrl}" alt="">` : ''}
   </div>
 
   <div class="title">${isTaxInvoice ? 'Tax Invoice' : 'Receipt'}</div>
@@ -325,8 +338,8 @@ function renderA4(input: ReceiptRenderInput): string {
 
   <table class="items">
     <thead><tr>
-      <th>#</th><th>Description</th>${taxed ? '<th>HSN</th>' : ''}
-      <th class="num">Qty</th><th class="num">Rate</th><th class="num">Disc</th>
+      <th>#</th><th>Description</th>${hsn ? '<th>HSN</th>' : ''}
+      <th class="num">Qty</th><th class="num">Rate</th>${discount ? '<th class="num">Disc</th>' : ''}
       <th class="num">${taxed ? 'Taxable' : 'Value'}</th>
       ${taxed ? '<th class="num">GST</th><th class="num">Tax</th>' : ''}
       <th class="num">Amount</th>
@@ -367,6 +380,8 @@ function renderA4(input: ReceiptRenderInput): string {
       <tr class="grand"><td>Total</td><td class="num">${formatPaise(bill.totalPaise, false)}</td></tr>
     </table>
   </div>
+
+  ${footBlocks(settings, esc)}
 
   <div class="foot">
     ${settings.receipt.footerText ? `${esc(settings.receipt.footerText)}<br>` : ''}

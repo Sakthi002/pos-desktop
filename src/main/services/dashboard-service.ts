@@ -36,6 +36,16 @@ const weekEnding = (range: Range): Range => {
   return { fromIso: from.toISOString(), toIso: range.toIso };
 };
 
+/** The same span of days, ending where the given one begins. */
+const before = (range: Range, days: number): Range => {
+  const shift = (iso: string): string => {
+    const at = new Date(iso);
+    at.setDate(at.getDate() - days);
+    return at.toISOString();
+  };
+  return { fromIso: shift(range.fromIso), toIso: shift(range.toIso) };
+};
+
 export class DashboardService {
   private readonly reports: ReportsRepository;
   private readonly inventory: InventoryRepository;
@@ -72,9 +82,13 @@ export class DashboardService {
       refundedPaise: row.refunded,
     }));
 
+    const week = weekEnding(today);
+
     return {
       today: this.takings(today),
-      week: this.takings(weekEnding(today)),
+      week: this.takings(week),
+      yesterday: this.takings(before(today, 1)),
+      previousWeek: this.takings(before(week, 7)),
       methods,
       // A handful: the point is a glance, not a report.
       lowStock: this.inventory.lowStock(5),

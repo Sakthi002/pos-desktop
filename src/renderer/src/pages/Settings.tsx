@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Save, Image, Check, Printer } from 'lucide-react';
 import { Field } from '../components/Field';
 import { BackupPanel } from '../components/BackupPanel';
@@ -8,8 +8,10 @@ import { UsersPanel } from '../components/UsersPanel';
 import { LoyaltyPanel } from '../components/LoyaltyPanel';
 import { ShiftPanel } from '../components/ShiftPanel';
 import { call } from '../lib/ipc';
+import { THEME_LABELS, THEME_NOTES } from '@shared/invoice-theme';
 import {
   BUSINESS_CATEGORIES,
+  INVOICE_THEMES,
   PAYMENT_METHOD_LABELS,
   type AppSettings,
   type SettingsPatch,
@@ -18,10 +20,15 @@ import { INDIAN_STATES } from '@shared/states';
 import type { PrinterInfo } from '@shared/ipc-contract';
 
 type PaymentMethod = AppSettings['payment']['methods'][number];
+
+/** A4 at 96 dpi, which is the size the preview draws itself at. */
+const A4_SCREEN_WIDTH_PX = 794;
+const A4_SCREEN_HEIGHT_PX = 1123;
 type Tab =
   | 'shop'
   | 'invoice'
   | 'receipt'
+  | 'template'
   | 'inventory'
   | 'loyalty'
   | 'shifts'
@@ -34,6 +41,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'shop', label: 'Shop profile' },
   { id: 'invoice', label: 'Invoicing & tax' },
   { id: 'receipt', label: 'Receipt & payments' },
+  { id: 'template', label: 'Bill template' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'loyalty', label: 'Points' },
   { id: 'shifts', label: 'Drawer' },
@@ -66,6 +74,30 @@ export function Settings({
   const [error, setError] = useState<string | null>(null);
   const [printers, setPrinters] = useState<PrinterInfo[]>([]);
   const [logo, setLogo] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [previewScale, setPreviewScale] = useState(0.5);
+  const previewWatch = useRef<ResizeObserver | null>(null);
+
+  /**
+   * The sample is a whole sheet of A4 drawn at its own size, then shrunk to
+   * whatever room the panel has. Letting the frame scroll instead would show a
+   * corner of a bill, which tells a shop nothing about the design.
+   *
+   * Measured through the ref itself rather than from an effect, so the watch
+   * moves with the element: one that observed the first node kept reporting
+   * that node's width after React had replaced it, and the sheet stayed the
+   * size it had been when the panel was narrower.
+   */
+  const watchPreview = useCallback((node: HTMLDivElement | null) => {
+    previewWatch.current?.disconnect();
+    previewWatch.current = null;
+    if (!node) return;
+
+    const fit = (): void => setPreviewScale(node.clientWidth / A4_SCREEN_WIDTH_PX);
+    fit();
+    previewWatch.current = new ResizeObserver(fit);
+    previewWatch.current.observe(node);
+  }, []);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
 
@@ -96,6 +128,42 @@ export function Settings({
     }
   }
 
+  /**
+   * The sample bill follows the draft, so a theme is seen before it is saved.
+   * It is fetched as soon as the page opens rather than when the tab is first
+   * shown — a preview that appears a moment after the tab does reads as the
+   * app being slow — and typing in the terms box waits for a pause, because
+   * every fetch reloads the frame and a frame reloading on each keystroke
+   * flickers.
+   */
+  const template = draft.template;
+  useEffect(() => {
+    let cancelled = false;
+    const run = (): void => {
+      void call('settings:templatePreview', template)
+        .then((result) => {
+          if (!cancelled) setPreview(result.html);
+        })
+        .catch(() => undefined);
+    };
+
+    if (preview === null) {
+      run();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const timer = setTimeout(run, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // The preview itself is deliberately not a dependency: it is what the
+    // effect sets, and only its first absence decides whether to wait.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template]);
+
   const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
 
   const patch = <S extends keyof AppSettings>(section: S, values: Partial<AppSettings[S]>) => {
@@ -114,6 +182,7 @@ export function Settings({
         invoice: draft.invoice,
         tax: draft.tax,
         receipt: draft.receipt,
+        template: draft.template,
         payment: draft.payment,
         inventory: draft.inventory,
       };
@@ -188,7 +257,9 @@ export function Settings({
         ))}
       </nav>
 
-      <div className="settings-body">
+      {/* The template tab earns the whole window: it is a page being looked
+          at, not a form being filled in. */}
+      <div className={tab === 'template' ? 'settings-body wide' : 'settings-body'}>
         {tab === 'shop' && (
           <>
             <Field label="Shop name" htmlFor="s-name" required>
@@ -452,6 +523,151 @@ export function Settings({
               <span>Show the tax breakdown on receipts</span>
             </label>
           </>
+        )}
+
+        {tab === 'template' && (
+          <div className="template-tab">
+            <div className="template-controls">
+            <p className="field-hint" style={{ marginBottom: 12 }}>
+              How an A4 bill and a quotation look. The figures and the GST summary are the same in
+              every design — what changes is the dress.
+            </p>
+
+            <Field label="Design" required>
+              <div className="chips">
+                {INVOICE_THEMES.map((id) => (
+                  <button
+                    type="button"
+                    key={id}
+                    className={draft.template.theme === id ? 'chip on' : 'chip'}
+                    onClick={() => patch('template', { theme: id })}
+                    aria-pressed={draft.template.theme === id}
+                  >
+                    {THEME_LABELS[id]}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <p className="field-hint" style={{ marginTop: -4 }}>
+              {THEME_NOTES[draft.template.theme]}
+            </p>
+
+            <div className="row">
+              <Field label="Colour" htmlFor="s-accent" hint="Used for rules, headings and the total">
+                <div className="logo-row">
+                  <input
+                    id="s-accent"
+                    type="color"
+                    className="colour-well"
+                    value={draft.template.accent}
+                    onChange={(e) => patch('template', { accent: e.target.value.toUpperCase() })}
+                  />
+                  <input
+                    aria-label="Colour as a hex code"
+                    value={draft.template.accent}
+                    maxLength={7}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase();
+                      if (/^#[0-9A-F]{0,6}$/.test(value)) patch('template', { accent: value });
+                    }}
+                  />
+                </div>
+              </Field>
+              <Field label="Signature line" htmlFor="s-sign" hint="The shop's name when left empty">
+                <input
+                  id="s-sign"
+                  value={draft.template.signatureLabel ?? ''}
+                  placeholder={draft.shop.name}
+                  onChange={(e) => patch('template', { signatureLabel: e.target.value })}
+                />
+              </Field>
+            </div>
+
+            <Field label="What the bill shows">
+              <div className="check-row">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={draft.template.showLogo}
+                    onChange={(e) => patch('template', { showLogo: e.target.checked })}
+                  />
+                  <span>Logo</span>
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={draft.template.showHsn}
+                    onChange={(e) => patch('template', { showHsn: e.target.checked })}
+                  />
+                  <span>HSN column</span>
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={draft.template.showDiscount}
+                    onChange={(e) => patch('template', { showDiscount: e.target.checked })}
+                  />
+                  <span>Discount column</span>
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={draft.template.showSignature}
+                    onChange={(e) => patch('template', { showSignature: e.target.checked })}
+                  />
+                  <span>Signature line</span>
+                </label>
+              </div>
+            </Field>
+
+            <Field label="Terms" htmlFor="s-terms" hint="Printed at the foot of an A4 bill">
+              <textarea
+                id="s-terms"
+                rows={2}
+                maxLength={500}
+                value={draft.template.terms ?? ''}
+                placeholder="Goods once sold are not returnable."
+                onChange={(e) => patch('template', { terms: e.target.value })}
+              />
+            </Field>
+
+            <Field
+              label="Payment details"
+              htmlFor="s-bank"
+              hint="Bank account or UPI id, for a customer paying later"
+            >
+              <textarea
+                id="s-bank"
+                rows={2}
+                maxLength={300}
+                value={draft.template.bankDetails ?? ''}
+                placeholder="Bank of India · A/c 001234567890 · IFSC BKID0000123"
+                onChange={(e) => patch('template', { bankDetails: e.target.value })}
+              />
+            </Field>
+
+            </div>
+
+            <div className="template-sample">
+              <span className="label">How it prints</span>
+              <div className="template-preview" ref={watchPreview}>
+                {preview ? (
+                  <iframe
+                    title="Bill preview"
+                    srcDoc={preview}
+                    sandbox=""
+                    style={{
+                      width: `${A4_SCREEN_WIDTH_PX}px`,
+                      height: `${A4_SCREEN_HEIGHT_PX}px`,
+                      transform: `scale(${previewScale})`,
+                    }}
+                  />
+                ) : (
+                  <span className="empty-frame">Rendering…</span>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {tab === 'backup' && (

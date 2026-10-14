@@ -1,6 +1,7 @@
 import { formatPaise } from './money';
 import { formatQuantity, precisionFor } from './quantity';
 import { stateByCode } from './states';
+import { themeCss } from './invoice-theme';
 import type { AppSettings } from './settings';
 import type { Quotation } from './quotations';
 
@@ -115,6 +116,9 @@ export function buildQuotationHtml(input: {
            letter-spacing: 0.08em; text-transform: uppercase; }
   .sign { margin-top: 22mm; text-align: right; }
   .sign span { display: inline-block; padding-top: 6px; border-top: 1px solid #999; min-width: 55mm; }
+  /* A quotation is dressed like the invoice it may become, so a customer sees
+     the same shop twice rather than two different ones. */
+  ${themeCss(settings)}
 </style></head>
 <body>
   ${dead ? `<div class="stamp">${quotation.status === 'cancelled' ? 'Cancelled' : 'Expired'}</div>` : ''}
@@ -125,7 +129,7 @@ export function buildQuotationHtml(input: {
       <p class="shop-name">${esc(shop.name)}</p>
       <div class="muted">${headerLines.map(esc).join('<br>')}</div>
     </div>
-    ${input.logoDataUrl ? `<img class="logo" src="${input.logoDataUrl}" alt="">` : ''}
+    ${settings.template.showLogo && input.logoDataUrl ? `<img class="logo" src="${input.logoDataUrl}" alt="">` : ''}
   </div>
 
   <div class="title">Quotation</div>
@@ -185,7 +189,11 @@ export function buildQuotationHtml(input: {
     </table>
   </div>
 
-  <div class="sign"><span>For ${esc(shop.name)}</span></div>
+  ${
+    settings.template.showSignature
+      ? `<div class="sign"><span>For ${esc(settings.template.signatureLabel || shop.name)}</span></div>`
+      : ''
+  }
 
   <div class="foot">
     This is a quotation, not an invoice. Nothing has been sold and no tax is

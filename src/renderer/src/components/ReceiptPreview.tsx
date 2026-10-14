@@ -127,10 +127,12 @@ export function ReceiptPreview({
         )}
 
         {message && (
-          <p className={message.kind === 'ok' ? 'preview-ok' : 'preview-warn'} role="status">
-            {message.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-            {message.text}
-          </p>
+          <div className="preview-note">
+            <p className={message.kind === 'ok' ? 'preview-ok' : 'preview-warn'} role="status">
+              {message.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+              {message.text}
+            </p>
+          </div>
         )}
 
         <div className="preview-stage">

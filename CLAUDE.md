@@ -110,5 +110,6 @@ Report definitions live in `docs/reports.md`, calculation rules in
 `docs/calculations.md`, who may do what in `docs/users.md`, how points work in `docs/loyalty.md`, how batches and expiry
 work in `docs/batches.md`, price levels, credit and the drawer in
 `docs/trade.md`, how a price given before a sale works in `docs/quotations.md`,
+how a bill is dressed in `docs/templates.md`,
 and what a shop
 needs when something goes wrong in `docs/operations.md`.

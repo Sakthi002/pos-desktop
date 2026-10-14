@@ -8,7 +8,12 @@
  * Adding a channel means adding it here first. There is no other way in.
  */
 import { z } from 'zod';
-import { appSettingsSchema, settingsPatchSchema, type AppSettings } from './settings';
+import {
+  appSettingsSchema,
+  settingsPatchSchema,
+  templateSchema,
+  type AppSettings,
+} from './settings';
 import {
   categoryInputSchema,
   csvImportSchema,
@@ -125,6 +130,7 @@ export const ipcContract = {
   'settings:get': z.void(),
   'settings:update': settingsPatchSchema,
   'settings:logo': z.void(),
+  'settings:templatePreview': templateSchema.partial(),
 
   'dialog:pickLogo': z.void(),
   'dialog:pickBackupDirectory': z.void(),
@@ -215,6 +221,7 @@ export const ipcContract = {
     id: z.string().uuid(),
     printerName: z.string().max(200).nullable().optional(),
   }),
+  'quotations:exportPdf': z.object({ id: z.string().uuid() }),
 
   'labels:preview': labelRequestSchema,
   'labels:print': labelRequestSchema.extend({
@@ -389,6 +396,7 @@ export interface IpcResponseMap {
   'settings:get': AppSettings | null;
   'settings:update': AppSettings;
   'settings:logo': { dataUrl: string | null };
+  'settings:templatePreview': { html: string };
   'dialog:pickLogo': PickedLogo;
   'dialog:openCsv': PickedCsv;
   'dialog:saveCsv': SavedFile;
@@ -457,6 +465,7 @@ export interface IpcResponseMap {
   'quotations:cancel': Quotation;
   'quotations:document': { html: string };
   'quotations:print': PrintOutcome;
+  'quotations:exportPdf': SavedFile;
 
   'labels:preview': { html: string };
   'labels:print': PrintOutcome;

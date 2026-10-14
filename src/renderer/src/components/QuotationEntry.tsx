@@ -257,7 +257,7 @@ export function QuotationEntry({
         </Field>
       </div>
 
-      <div className="pos-search" style={{ marginBottom: 12 }}>
+      <div className="pos-search">
         <Search size={16} />
         <input
           value={search}
@@ -370,7 +370,7 @@ export function QuotationEntry({
       </Field>
 
       {bill && (
-        <div className="totals" style={{ marginTop: 6 }}>
+        <div className="totals">
           <div className="t-row">
             <span>Value</span>
             <span>{formatPaise(bill.taxablePaise)}</span>

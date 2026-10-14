@@ -112,6 +112,21 @@ export function App() {
     }
   }, []);
 
+  /**
+   * Turning sign-in on takes effect in the main process at once: from that
+   * moment every privileged call needs a session this window does not have.
+   * Re-reading the session the instant the setting changes is what puts the
+   * login screen up — without it the shop is left in a window that looks
+   * usable, where even turning the setting back off is refused.
+   */
+  const requireLogin = settings?.security.requireLogin;
+  useEffect(() => {
+    if (requireLogin === undefined) return;
+    void call('auth:session')
+      .then((next) => setAuth(next))
+      .catch(() => undefined);
+  }, [requireLogin]);
+
   // The till locks itself after a spell of no use, and the lock happens in the
   // main process. Asking every half minute is what turns that into a screen
   // the cashier actually sees, rather than an error on their next keystroke.

@@ -91,6 +91,35 @@ export const receiptSchema = z.object({
   silentPrint: z.boolean().default(false),
 });
 
+/**
+ * How a printed bill looks.
+ *
+ * The layout of a tax invoice is fixed by what it has to show, so what differs
+ * between shops is the dress: which of a few tested designs, in which colour,
+ * with which optional columns, and what the shop wants printed at the foot of
+ * it. Nothing here can leave out anything the law requires.
+ */
+export const INVOICE_THEMES = ['classic', 'modern', 'compact', 'bordered'] as const;
+
+export const templateSchema = z.object({
+  theme: z.enum(INVOICE_THEMES).default('classic'),
+  /** Used for rules, headings and the total on themes that take a colour. */
+  accent: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Give a colour as #RRGGBB')
+    .default('#4F46E5'),
+  showLogo: z.boolean().default(true),
+  showHsn: z.boolean().default(true),
+  showDiscount: z.boolean().default(true),
+  showSignature: z.boolean().default(true),
+  /** Printed under the signature line; the shop's name when left empty. */
+  signatureLabel: optionalText,
+  /** Terms and conditions, printed at the foot of an A4 bill. */
+  terms: z.string().trim().max(500).optional(),
+  /** Bank account or UPI line, for customers who pay later. */
+  bankDetails: z.string().trim().max(300).optional(),
+});
+
 export const paymentSchema = z.object({
   methods: z
     .array(z.enum(['cash', 'upi', 'card', 'bank', 'other']))
@@ -163,6 +192,7 @@ export const appSettingsSchema = z.object({
   invoice: invoiceSchema,
   tax: taxSchema,
   receipt: receiptSchema,
+  template: templateSchema,
   payment: paymentSchema,
   inventory: inventorySchema,
   backup: backupSchema,
@@ -171,6 +201,8 @@ export const appSettingsSchema = z.object({
 });
 
 export type ShopSettings = z.infer<typeof shopSchema>;
+export type TemplateSettings = z.infer<typeof templateSchema>;
+export type InvoiceTheme = (typeof INVOICE_THEMES)[number];
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 export type SettingsSection = keyof AppSettings;
 
@@ -181,6 +213,7 @@ export const settingsPatchSchema = z.object({
   invoice: invoiceSchema.partial().optional(),
   tax: taxSchema.partial().optional(),
   receipt: receiptSchema.partial().optional(),
+  template: templateSchema.partial().optional(),
   payment: paymentSchema.partial().optional(),
   inventory: inventorySchema.partial().optional(),
   backup: backupSchema.partial().optional(),
@@ -198,6 +231,7 @@ export function defaultSettings(shopName: string): AppSettings {
     invoice: {},
     tax: {},
     receipt: {},
+    template: {},
     payment: {},
     inventory: {},
     backup: {},

@@ -505,6 +505,84 @@ select {
   flex: none;
 }
 
+/* What the shop sets, and what it gets, side by side: a preview below the
+   fold is a preview nobody sees. */
+.template-tab {
+  display: grid;
+  /* The controls need only enough room to read; the sheet takes the rest, up
+     to about the size it will be printed at. */
+  grid-template-columns: minmax(340px, 440px) minmax(0, 760px);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .template-tab {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.template-sample {
+  position: sticky;
+  top: 0;
+}
+
+.template-sample .label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.template-preview {
+  position: relative;
+  width: 100%;
+  /* Never wider than the sheet is at its own size: past that it is a bill
+     blown up, not a bill. */
+  max-width: 794px;
+  aspect-ratio: 210 / 297;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: #fff;
+}
+
+.template-preview iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+}
+
+.template-preview .empty-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.colour-well {
+  width: 44px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  cursor: pointer;
+  flex: none;
+}
+
 /* ─── Buttons ────────────────────────────────────────────────────────────── */
 
 .btn-primary,
@@ -710,11 +788,13 @@ kbd {
 }
 
 .sidebar {
-  width: 228px;
+  /* Wide enough for a shop name on one line: "Sharma General Store" wrapped at
+     228px, and a name that wraps reads as a cramped app. */
+  width: 268px;
   flex: none;
   background: var(--surface);
   border-right: 1px solid var(--line);
-  padding: 18px 12px;
+  padding: 0 12px 18px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -724,8 +804,16 @@ kbd {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 4px 10px 16px;
-  border-bottom: 1px solid var(--line-soft);
+}
+
+/* In the sidebar it is a header in its own right: the same height as the bar
+   across the top, and run out to the sidebar's edges, so the rule under it and
+   the rule under the bar meet at one line. */
+.sidebar .brand {
+  height: var(--topbar-h);
+  margin: 0 -12px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--line);
 }
 
 .brand-mark {
@@ -888,6 +976,21 @@ kbd {
   padding: 12px 11px;
   border-radius: 11px;
   background: var(--bg);
+}
+
+/* A rule over the foot to answer the one under the header, run out to the
+   sidebar's own edges so both cross it fully. */
+.sidebar .sidebar-foot {
+  margin-inline: -12px;
+  padding-inline: 22px;
+  padding-top: 18px;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+}
+
+.sidebar .sidebar-foot .badge {
+  align-self: flex-start;
 }
 
 .sidebar-foot .muted {
@@ -1222,14 +1325,38 @@ table.data.report tfoot td {
   color: var(--ink);
 }
 
+/* The row's actions: a line of marks with air between them, so three buttons
+   read as three and not as one bar. */
 td.actions {
   text-align: right;
   white-space: nowrap;
 }
 
+td.actions > * {
+  vertical-align: middle;
+}
+
+td.actions > * + * {
+  margin-left: 8px;
+}
+
+/* Every action in a row sits on a face of its own: one that has a colour keeps
+   it, and the rest take a plain one, so a line of buttons reads as buttons
+   rather than as loose icons. */
 td.actions .icon-btn {
   width: 40px;
   height: 40px;
+}
+
+/* The ones with no colour of their own still get a face: a row of buttons
+   should read as buttons, not as icons let loose among the figures. */
+td.actions .icon-btn:not(.view):not(.print):not(.danger) {
+  background: var(--line-soft);
+  color: var(--ink);
+}
+
+td.actions .icon-btn:not(.view):not(.print):not(.danger):hover:not(:disabled) {
+  background: var(--line);
 }
 
 /* Colour says which action is which before the icon is read, and which one
@@ -1288,6 +1415,18 @@ td.actions .icon-btn.danger:disabled {
   vertical-align: 1px;
 }
 
+/* A status is read at a glance down a column, so each one carries its own
+   colour: open is a good thing, cancelled is not. */
+.pill.ok {
+  background: var(--ok-tint);
+  color: var(--ok);
+}
+
+.pill.info {
+  background: var(--info-tint);
+  color: var(--info);
+}
+
 .pill.danger {
   background: var(--err-tint);
   color: var(--err);
@@ -1331,6 +1470,31 @@ td.actions .icon-btn.danger:disabled {
   overflow: hidden;
 }
 
+/* A dialog for something that cannot be taken back says so before it is read:
+   the head carries the warning colour, not just the button at the end. */
+.modal-danger .modal-head {
+  background: var(--err-tint);
+  border-bottom-color: var(--err);
+}
+
+.modal-danger .modal-head h2 {
+  color: var(--err);
+}
+
+.confirm-message {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.confirm-message svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--err);
+}
+
 .modal-head {
   display: flex;
   align-items: center;
@@ -1350,6 +1514,59 @@ td.actions .icon-btn.danger:disabled {
 .modal-body {
   padding: 20px 22px;
   overflow-y: auto;
+}
+
+/* A table in a dialog has the dialog's own margin already: the inset belongs
+   to a page, where the table sits directly on the background. Only the sides
+   are dropped — zeroing all four would beat the spacing rule below and leave
+   the table touching whatever is above it. */
+.modal-body .table-wrap {
+  margin-inline: 0;
+}
+
+/* The lines of a document are mostly its names, so the first column takes the
+   room left over, instead of wrapping "Sunflower Oil 1L" over two lines beside
+   three half-empty boxes. The figures get the width a figure needs and no
+   more, so nothing is typed into a box that cannot show it. */
+.modal-body table.data th:first-child,
+.modal-body table.data td:first-child {
+  width: auto;
+}
+
+.modal-body table.data th.num,
+.modal-body table.data td.num {
+  width: 122px;
+}
+
+.modal-body table.data td input.price-input {
+  width: 100%;
+}
+
+.modal-body table.data th.actions,
+.modal-body table.data td.actions {
+  width: 64px;
+}
+
+/* A search box in a dialog is one item in its rhythm, not a block with its
+   own skirt. */
+.modal-body .pos-search {
+  margin-bottom: 0;
+}
+
+/* One rhythm down a dialog, whatever it is made of — fields, a search box, a
+   table of lines, a note, the totals — instead of each part bringing its own
+   gap and the seams showing. */
+.modal-body > * + * {
+  margin-top: 16px;
+}
+
+.modal-body > .field + .field,
+.modal-body > .row + .row {
+  margin-top: 14px;
+}
+
+.modal-body > .totals {
+  margin-top: 18px;
 }
 
 .modal-foot {
@@ -1503,6 +1720,11 @@ td.actions .icon-btn.danger:disabled {
   padding: 24px 32px 40px;
   /* A text field as wide as the window is harder to read, not easier. */
   max-width: 820px;
+}
+
+/* Except where the width is the point: a sheet of A4 beside its controls. */
+.settings-body.wide {
+  max-width: 1500px;
 }
 
 .floating-nav {
@@ -2463,15 +2685,31 @@ td.actions .icon-btn.danger:disabled {
   height: 620px;
 }
 
+/* A note about what just happened: as wide as what it sits in, but inside its
+   edges rather than running across them. */
 .preview-ok,
 .preview-warn {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0;
-  padding: 10px 20px;
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-radius: var(--r);
   font-size: 13px;
   font-weight: 600;
+}
+
+/* In a print dialog the note belongs to the stage the sheet sits on, not to
+   the white surface above it, so it is wrapped in a strip of the same colour
+   and keeps the inset everything else in the dialog has. */
+.preview-note {
+  padding: 12px 20px 0;
+  background: var(--bg);
+}
+
+.preview-note .preview-ok,
+.preview-note .preview-warn {
+  margin: 0;
 }
 
 .preview-ok {
@@ -2578,7 +2816,10 @@ td.actions .icon-btn.danger:disabled {
 
 .dash-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* Four across on a shop's screen. The figure keeps its mark company until
+     the card is too narrow for both, and then the delta drops under it rather
+     than the two running into each other. */
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
   gap: 14px;
   margin-bottom: 16px;
 }
@@ -2586,9 +2827,13 @@ td.actions .icon-btn.danger:disabled {
 .stat {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 16px 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  /* A long note must not set the card's width, or one wordy card drops the
+     whole row to three across. */
+  min-width: 0;
+  padding: 18px 20px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -2596,37 +2841,82 @@ td.actions .icon-btn.danger:disabled {
   overflow: hidden;
 }
 
-/* A stripe of the card's own colour, rather than a border all the way round:
-   enough to tell the cards apart at a glance, not enough to shout. */
+/* A wash of the card's own colour behind the mark, so four cards in a row are
+   told apart by their corner rather than by reading their labels. */
 .stat.hued::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--hue, var(--accent));
+  inset: -40% -30% auto auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--hue-tint, var(--accent-tint)) 0%, transparent 68%);
+  pointer-events: none;
 }
 
+.stat-text {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  min-width: 0;
+}
+
+/* The mark: a disc of the card's colour, lit from the top left, with a ring of
+   the same colour held off it. */
 .stat-chip {
+  position: relative;
+  flex: none;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-bottom: 2px;
-  border-radius: 11px;
-  background: var(--hue-tint, var(--accent-tint));
-  color: var(--hue, var(--accent));
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--hue, var(--accent)) 78%, #fff),
+    var(--hue, var(--accent))
+  );
+  color: #fff;
+  box-shadow:
+    0 6px 14px -6px var(--hue, var(--accent)),
+    0 0 0 5px var(--hue-tint, var(--accent-tint));
+}
+
+/* How the figure moved against the span before it. */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--ok-tint);
+  color: var(--ok);
+}
+
+.delta.down {
+  background: var(--err-tint);
+  color: var(--err);
 }
 
 .stat-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--muted);
 }
 
 .stat-value {
-  font-size: 29px;
+  font-size: 27px;
   font-weight: 800;
   letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
@@ -2636,6 +2926,7 @@ td.actions .icon-btn.danger:disabled {
 .stat-note {
   font-size: 12.5px;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .dash-cols {

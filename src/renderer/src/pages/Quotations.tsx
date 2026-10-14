@@ -3,6 +3,7 @@ import { FileText, Plus, Search, Printer, Eye, ShoppingCart } from 'lucide-react
 import { call } from '../lib/ipc';
 import { QuotationEntry } from '../components/QuotationEntry';
 import { QuotationDetail } from '../components/QuotationDetail';
+import { QuotationPreview } from '../components/QuotationPreview';
 import { formatPaise } from '@shared/money';
 import {
   QUOTATION_STATUS_LABELS,
@@ -54,6 +55,7 @@ export function Quotations({ onBill }: { onBill: (quotationId: string) => void }
 
   const [entering, setEntering] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState<QuotationSummary | null>(null);
 
   const pageSize = 25;
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -78,14 +80,6 @@ export function Quotations({ onBill }: { onBill: (quotationId: string) => void }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async IPC load
     void load();
   }, [load]);
-
-  async function print(id: string) {
-    try {
-      await call('quotations:print', { id, printerName: null });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }
 
   return (
     <div className="page">
@@ -201,7 +195,7 @@ export function Quotations({ onBill }: { onBill: (quotationId: string) => void }
                       <button
                         className="icon-btn print"
                         title="Print"
-                        onClick={() => void print(q.id)}
+                        onClick={() => setPreviewing(q)}
                       >
                         <Printer size={15} />
                       </button>
@@ -253,6 +247,14 @@ export function Quotations({ onBill }: { onBill: (quotationId: string) => void }
             setViewing(quotation.id);
             void load();
           }}
+        />
+      )}
+
+      {previewing && (
+        <QuotationPreview
+          quotationId={previewing.id}
+          quotationNumber={previewing.quotationNumber}
+          onClose={() => setPreviewing(null)}
         />
       )}
 

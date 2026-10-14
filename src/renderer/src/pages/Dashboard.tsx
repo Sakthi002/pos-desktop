@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -15,6 +15,18 @@ import type { DashboardSummary } from '@shared/dashboard';
 import type { Route } from '../components/AppShell';
 
 const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * How a figure moved against the span before it. Nothing is shown when there
+ * is nothing to compare against — a shop's first day is not an infinite rise,
+ * and a made-up percentage is worse than none.
+ */
+function change(now: number, before: number): { label: string; up: boolean } | null {
+  if (before <= 0 || now === before) return null;
+  const percent = ((now - before) / before) * 100;
+  const rounded = Math.abs(percent) >= 10 ? Math.round(percent) : Math.round(percent * 10) / 10;
+  return { label: `${rounded > 0 ? '+' : ''}${rounded}%`, up: percent > 0 };
+}
 
 const startOfToday = (): string => {
   const d = new Date();
@@ -39,6 +51,49 @@ const formatTime = (iso: string): string => {
  * to run out, and the last few bills. Every figure comes from the same queries
  * the reports use, so the two cannot disagree.
  */
+/**
+ * One figure, what it is, and which way it moved. The mark on the right is
+ * what the eye finds first when four of these sit in a row.
+ */
+function Stat({
+  hue,
+  icon,
+  value,
+  label,
+  note,
+  change: moved,
+  against,
+}: {
+  hue: Parameters<typeof hueStyle>[0];
+  icon: ReactNode;
+  value: string;
+  label: string;
+  note?: string;
+  change: { label: string; up: boolean } | null;
+  against?: string;
+}) {
+  return (
+    <div className="stat hued" style={hueStyle(hue)}>
+      <div className="stat-text">
+        <div className="stat-top">
+          <strong className="stat-value">{value}</strong>
+          {moved && (
+            <span
+              className={moved.up ? 'delta up' : 'delta down'}
+              title={against ? `Against ${against}` : undefined}
+            >
+              {moved.label}
+            </span>
+          )}
+        </div>
+        <span className="stat-label">{label}</span>
+        {note && <span className="stat-note">{note}</span>}
+      </div>
+      <span className="stat-chip">{icon}</span>
+    </div>
+  );
+}
+
 export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }) {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,51 +140,60 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
       ) : (
         <div className="dash">
           <section className="dash-row">
-            <div className="stat hued" style={hueStyle('indigo')}>
-              <span className="stat-chip">
-                <Wallet size={17} />
-              </span>
-              <span className="stat-label">Takings today</span>
-              <strong className="stat-value">{formatPaise(today.netPaise)}</strong>
-              <span className="stat-note">
-                {today.invoices} {today.invoices === 1 ? 'bill' : 'bills'}
-                {today.returnedPaise > 0 && ` · ${formatPaise(today.returnedPaise)} returned`}
-              </span>
-            </div>
-            <div className="stat hued" style={hueStyle('teal')}>
-              <span className="stat-chip">
-                <TrendingUp size={17} />
-              </span>
-              <span className="stat-label">Last seven days</span>
-              <strong className="stat-value">{formatPaise(week.netPaise)}</strong>
-              <span className="stat-note">
-                {week.invoices} {week.invoices === 1 ? 'bill' : 'bills'}
-              </span>
-            </div>
-            <div className="stat hued" style={hueStyle('violet')}>
-              <span className="stat-chip">
-                <Receipt size={17} />
-              </span>
-              <span className="stat-label">Average bill today</span>
-              <strong className="stat-value">
-                {today.invoices > 0
+            <Stat
+              hue="indigo"
+              icon={<Wallet size={22} />}
+              value={formatPaise(today.netPaise)}
+              label="Takings today"
+              note={`${today.invoices} ${today.invoices === 1 ? 'bill' : 'bills'}${
+                today.returnedPaise > 0 ? ` · ${formatPaise(today.returnedPaise)} returned` : ''
+              }`}
+              change={change(today.netPaise, data.yesterday.netPaise)}
+              against="yesterday"
+            />
+            <Stat
+              hue="teal"
+              icon={<TrendingUp size={22} />}
+              value={formatPaise(week.netPaise)}
+              label="Last seven days"
+              note={`${week.invoices} ${week.invoices === 1 ? 'bill' : 'bills'}`}
+              change={change(week.netPaise, data.previousWeek.netPaise)}
+              against="the seven before"
+            />
+            <Stat
+              hue="violet"
+              icon={<Receipt size={22} />}
+              value={
+                today.invoices > 0
                   ? formatPaise(Math.round(today.totalPaise / today.invoices))
-                  : '—'}
-              </strong>
-              <span className="stat-note">Before returns</span>
-            </div>
+                  : '—'
+              }
+              label="Average bill today"
+              note="Before returns"
+              change={
+                // No bills today is no average, and nothing to compare: a
+                // dash with "-100%" beside it says a thing that is not so.
+                today.invoices > 0
+                  ? change(
+                      today.totalPaise / today.invoices,
+                      data.yesterday.invoices > 0
+                        ? data.yesterday.totalPaise / data.yesterday.invoices
+                        : 0,
+                    )
+                  : null
+              }
+              against="yesterday"
+            />
 
             {data.expiring.batches > 0 && (
-              <div className="stat hued" style={hueStyle('amber')}>
-                <span className="stat-chip">
-                  <CalendarClock size={17} />
-                </span>
-                <span className="stat-label">Expiring within a month</span>
-                <strong className="stat-value">{data.expiring.batches}</strong>
-                <span className="stat-note">
-                  {formatPaise(data.expiring.valuePaise)} at cost · see Inventory → Batches
-                </span>
-              </div>
+              <Stat
+                hue="amber"
+                icon={<CalendarClock size={22} />}
+                value={String(data.expiring.batches)}
+                label="Expiring within a month"
+                note={`${formatPaise(data.expiring.valuePaise)} at cost · see Inventory → Batches`}
+                change={null}
+              />
             )}
           </section>
 
