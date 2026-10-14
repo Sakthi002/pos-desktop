@@ -54,6 +54,13 @@ import {
   type QuotationPage,
 } from './quotations';
 import {
+  cancelPurchaseOrderSchema,
+  purchaseOrderInputSchema,
+  purchaseOrderQuerySchema,
+  type PurchaseOrder,
+  type PurchaseOrderPage,
+} from './purchase-orders';
+import {
   closeShiftSchema,
   customerReceiptSchema,
   openShiftSchema,
@@ -211,6 +218,17 @@ export const ipcContract = {
   'users:update': updateUserSchema,
   'users:setActive': setUserActiveSchema,
   'users:resetPassword': resetPasswordSchema,
+
+  'purchaseOrders:create': purchaseOrderInputSchema,
+  'purchaseOrders:list': purchaseOrderQuerySchema.partial(),
+  'purchaseOrders:get': z.object({ id: z.string().uuid() }),
+  'purchaseOrders:cancel': cancelPurchaseOrderSchema,
+  'purchaseOrders:document': z.object({ id: z.string().uuid() }),
+  'purchaseOrders:print': z.object({
+    id: z.string().uuid(),
+    printerName: z.string().max(200).nullable().optional(),
+  }),
+  'purchaseOrders:exportPdf': z.object({ id: z.string().uuid() }),
 
   'quotations:create': quotationInputSchema,
   'quotations:list': quotationQuerySchema.partial(),
@@ -459,6 +477,14 @@ export interface IpcResponseMap {
   'users:update': UserSummary;
   'users:setActive': UserSummary;
   'users:resetPassword': UserSummary;
+
+  'purchaseOrders:create': PurchaseOrder;
+  'purchaseOrders:list': PurchaseOrderPage;
+  'purchaseOrders:get': PurchaseOrder;
+  'purchaseOrders:cancel': PurchaseOrder;
+  'purchaseOrders:document': { html: string };
+  'purchaseOrders:print': PrintOutcome;
+  'purchaseOrders:exportPdf': SavedFile;
 
   'quotations:create': Quotation;
   'quotations:list': QuotationPage;

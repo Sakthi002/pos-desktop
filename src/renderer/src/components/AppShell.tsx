@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import {
+import { ClipboardList,
   LayoutDashboard,
   ShoppingCart,
   Receipt,
@@ -29,6 +29,7 @@ export type Route =
   | 'pos'
   | 'sales'
   | 'quotations'
+  | 'purchaseOrders'
   | 'products'
   | 'categories'
   | 'inventory'
@@ -67,6 +68,13 @@ const NAV: NavItem[] = [
     hue: 'amber',
   },
   { id: 'inventory', label: 'Inventory', icon: Boxes, needs: 'report.view', hue: 'rose' },
+  {
+    id: 'purchaseOrders',
+    label: 'Orders',
+    icon: ClipboardList,
+    needs: 'purchase.manage',
+    hue: 'indigo',
+  },
   {
     id: 'purchases',
     label: 'Purchases',

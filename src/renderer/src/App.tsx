@@ -11,6 +11,7 @@ import { Categories } from './pages/Categories';
 import { Pos } from './pages/Pos';
 import { Sales } from './pages/Sales';
 import { Quotations } from './pages/Quotations';
+import { PurchaseOrders } from './pages/PurchaseOrders';
 import { Inventory } from './pages/Inventory';
 import { Customers } from './pages/Customers';
 import { Purchases } from './pages/Purchases';
@@ -31,6 +32,7 @@ const ROUTE_PERMISSION: Partial<Record<Route, Permission>> = {
   pos: 'sell',
   sales: 'sale.view',
   quotations: 'sale.view',
+  purchaseOrders: 'purchase.manage',
   products: 'product.manage',
   categories: 'product.manage',
   inventory: 'report.view',
@@ -46,6 +48,7 @@ const ROUTES: Route[] = [
   'pos',
   'sales',
   'quotations',
+  'purchaseOrders',
   'products',
   'categories',
   'inventory',
@@ -75,6 +78,7 @@ export function App() {
   const [auth, setAuth] = useState<SessionState | null>(null);
   /** A quotation the till is about to bill, handed over when the route changes. */
   const [billingQuotation, setBillingQuotation] = useState<string | null>(null);
+  const [receivingOrder, setReceivingOrder] = useState<string | null>(null);
 
   const navigate = useCallback((next: Route) => {
     setRoute(next);
@@ -235,7 +239,20 @@ export function App() {
         {view === 'products' && <Products settings={settings} />}
         {view === 'categories' && <Categories />}
         {view === 'inventory' && <Inventory />}
-        {view === 'purchases' && <Purchases />}
+        {view === 'purchaseOrders' && (
+          <PurchaseOrders
+            onReceive={(id) => {
+              setReceivingOrder(id);
+              navigate('purchases');
+            }}
+          />
+        )}
+        {view === 'purchases' && (
+          <Purchases
+            receivingOrderId={receivingOrder}
+            onOrderReceived={() => setReceivingOrder(null)}
+          />
+        )}
         {view === 'suppliers' && <Suppliers />}
         {view === 'customers' && <Customers settings={settings} />}
         {view === 'reports' && <Reports settings={settings} />}

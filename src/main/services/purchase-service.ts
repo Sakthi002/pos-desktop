@@ -36,6 +36,7 @@ import { CatalogueRepository } from '../db/repositories/catalogue';
 import { AuditRepository } from '../db/repositories/audit';
 import { SettingsService } from './settings-service';
 import { LedgerService } from './ledger-service';
+import { PurchaseOrderService, PurchaseOrderError } from './purchase-order-service';
 import { BatchService } from './batch-service';
 import { loadBranchContext, type BranchContext } from './branch-context';
 
@@ -298,6 +299,20 @@ export class PurchaseService {
           at,
         });
         this.ledger.postSupplierPayment(paymentId);
+      }
+
+      // The order these goods were sent against: settled here, inside the
+      // purchase's own transaction, so one order can never be received twice.
+      if (parsed.purchaseOrderId) {
+        try {
+          new PurchaseOrderService(this.db).markReceived(parsed.purchaseOrderId, purchaseId, at);
+        } catch (err) {
+          if (err instanceof PurchaseOrderError) throw new PurchaseError(err.code, err.message);
+          throw err;
+        }
+        this.db
+          .prepare('UPDATE purchases SET purchase_order_id = ? WHERE id = ?')
+          .run(parsed.purchaseOrderId, purchaseId);
       }
 
       this.audit.record(

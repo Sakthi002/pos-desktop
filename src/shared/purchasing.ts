@@ -126,6 +126,8 @@ export const purchaseInputSchema = z.object({
   /** Generated when the purchase screen opens; makes a retry safe. */
   idempotencyKey: z.string().uuid(),
   supplierId: z.string().uuid(),
+  /** The order these goods were sent against, when there was one. */
+  purchaseOrderId: z.string().uuid().nullable().optional(),
   supplierBillNo: z.string().trim().max(60).nullable().optional(),
   /** The date on their bill, which is often not today. */
   purchaseDateIso: z.iso.datetime().nullable().optional(),

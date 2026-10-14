@@ -11,6 +11,7 @@ import { migration009 } from './009-loyalty';
 import { migration010 } from './010-batches';
 import { migration011 } from './011-trade-terms';
 import { migration012 } from './012-quotations';
+import { migration013 } from './013-purchase-orders';
 
 /** Ordered by version. Append only — never reorder or edit an applied entry. */
 export const migrations: Migration[] = [
@@ -26,6 +27,7 @@ export const migrations: Migration[] = [
   migration010,
   migration011,
   migration012,
+  migration013,
 ];
 
 export type { Migration };

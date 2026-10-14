@@ -16,6 +16,8 @@ import { buildReceiptHtml, type PaperSize } from '@shared/receipt';
 import { sampleReceipt } from '@shared/sample-bill';
 import type { AppSettings } from '@shared/settings';
 import { buildLabelsHtml, type LabelRequest } from '@shared/labels';
+import { buildPurchaseOrderHtml } from '@shared/purchase-order-document';
+import { PurchaseOrderService, PurchaseOrderError } from '../services/purchase-order-service';
 import { readLogo } from '../services/logo-service';
 import { CatalogueService, CatalogueError } from '../services/catalogue-service';
 import { SaleService, SaleError } from '../services/sale-service';
@@ -283,6 +285,43 @@ export function registerIpcHandlers(): void {
       throw err;
     }
   };
+
+  const ordering = <T>(work: (service: PurchaseOrderService) => T): T => {
+    try {
+      return work(new PurchaseOrderService(getDatabase()));
+    } catch (err) {
+      if (err instanceof PurchaseOrderError) throw new IpcError(err.code, err.message);
+      throw err;
+    }
+  };
+
+  /** The order as a sheet, built here so the renderer sends no costs. */
+  const purchaseOrderSheet = (id: string): { html: string; orderNumber: string } => {
+    const db = getDatabase();
+    const settings = new SettingsService(db).require();
+    const order = ordering((service) => service.get(id));
+    return {
+      html: buildPurchaseOrderHtml({
+        order,
+        settings,
+        logoDataUrl: settings.shop.logoPath ? readLogo(settings.shop.logoPath) : null,
+      }),
+      orderNumber: order.orderNumber,
+    };
+  };
+
+  registerHandler('purchaseOrders:create', (input) => ordering((s) => s.create(input)));
+  registerHandler('purchaseOrders:list', (query) => ordering((s) => s.list(query)));
+  registerHandler('purchaseOrders:get', ({ id }) => ordering((s) => s.get(id)));
+  registerHandler('purchaseOrders:cancel', (input) => ordering((s) => s.cancel(input)));
+  registerHandler('purchaseOrders:document', ({ id }) => ({ html: purchaseOrderSheet(id).html }));
+  registerHandler('purchaseOrders:print', async ({ id, printerName }) =>
+    printDocument(purchaseOrderSheet(id).html, 'a4', printerName ?? null, false),
+  );
+  registerHandler('purchaseOrders:exportPdf', async ({ id }) => {
+    const sheet = purchaseOrderSheet(id);
+    return exportPdf(focusedWindow(), sheet.html, 'a4', `${sheet.orderNumber}.pdf`);
+  });
 
   /** The quotation as a sheet, built here so the renderer sends no prices. */
   const quotationDocument = (id: string): { html: string; quotationNumber: string } => {

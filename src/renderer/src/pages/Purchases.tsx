@@ -20,7 +20,14 @@ const formatDate = (iso: string): string => {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
-export function Purchases() {
+export function Purchases({
+  receivingOrderId,
+  onOrderReceived,
+}: {
+  /** An order whose goods have arrived: the bill opens on it. */
+  receivingOrderId?: string | null;
+  onOrderReceived?: () => void;
+} = {}) {
   const [items, setItems] = useState<PurchaseSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [purchasedPaise, setPurchasedPaise] = useState(0);
@@ -267,11 +274,16 @@ export function Purchases() {
         </>
       )}
 
-      {entering && (
+      {(entering || receivingOrderId) && (
         <PurchaseEntry
-          onClose={() => setEntering(false)}
+          purchaseOrderId={receivingOrderId ?? null}
+          onClose={() => {
+            setEntering(false);
+            onOrderReceived?.();
+          }}
           onSaved={(purchase) => {
             setEntering(false);
+            onOrderReceived?.();
             setNotice(
               `${purchase.purchaseNumber} recorded — ${formatPaise(purchase.totalPaise)} from ${purchase.supplierName ?? 'the supplier'}, stock updated.`,
             );

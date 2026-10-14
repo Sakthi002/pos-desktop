@@ -4,7 +4,7 @@ import { Modal } from './Modal';
 import { Field } from './Field';
 import { call } from '../lib/ipc';
 import { formatPaise, parseRupees } from '@shared/money';
-import { parseQuantity, precisionFor } from '@shared/quantity';
+import { formatQuantity, parseQuantity, precisionFor } from '@shared/quantity';
 import type { Product } from '@shared/catalogue';
 import {
   SUPPLIER_PAYMENT_METHODS,
@@ -38,9 +38,12 @@ const toPaise = (value: string): number => parseRupees(value) ?? 0;
 export function PurchaseEntry({
   onClose,
   onSaved,
+  /** The order these goods were sent against, when the bill came from one. */
+  purchaseOrderId,
 }: {
   onClose: () => void;
   onSaved: (purchase: PurchaseReceipt) => void;
+  purchaseOrderId?: string | null;
 }) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState('');
@@ -68,6 +71,55 @@ export function PurchaseEntry({
       .then((page) => setSuppliers(page.items))
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
+
+  /**
+   * An order being received: the supplier and the lines come from it, so the
+   * shop checks the bill against what it asked for rather than typing it out
+   * again. Everything the bill decides — tax, batches, what was actually sent
+   * — is still entered here.
+   */
+  useEffect(() => {
+    if (!purchaseOrderId) return;
+    let cancelled = false;
+    void call('purchaseOrders:get', { id: purchaseOrderId })
+      .then(async (order) => {
+        if (cancelled) return;
+        setSupplierId(order.supplierId);
+        const products = await Promise.all(
+          order.lines.map((line) =>
+            line.productId
+              ? call('products:get', { id: line.productId }).catch(() => null)
+              : Promise.resolve(null),
+          ),
+        );
+        if (cancelled) return;
+        setLines(
+          products.flatMap((product, index) => {
+            const line = order.lines[index];
+            if (!product || !line) return [];
+            return [
+              {
+                product,
+                quantity: formatQuantity(line.quantityMilli, precisionFor(line.unitCode)),
+                cost: (line.unitCostPaise / 100).toFixed(2),
+                mrp: '',
+                discount: '',
+                updateSellingPrice: false,
+                batchNumber: '',
+                manufacturedOn: '',
+                expiresOn: '',
+              },
+            ];
+          }),
+        );
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [purchaseOrderId]);
 
   useEffect(() => {
     const term = search.trim();
@@ -168,6 +220,7 @@ export function PurchaseEntry({
       const purchase = await call('purchases:create', {
         idempotencyKey: idempotencyKey.current,
         supplierId,
+        purchaseOrderId: purchaseOrderId ?? null,
         supplierBillNo: billNo.trim() || null,
         purchaseDateIso: new Date(`${billDate}T12:00:00`).toISOString(),
         taxMode,

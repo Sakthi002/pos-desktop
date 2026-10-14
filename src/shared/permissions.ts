@@ -117,6 +117,13 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'quotations:get': 'sale.view',
   'quotations:cancel': 'sell',
   'quotations:document': 'sale.view',
+  'purchaseOrders:create': 'purchase.manage',
+  'purchaseOrders:list': 'purchase.manage',
+  'purchaseOrders:get': 'purchase.manage',
+  'purchaseOrders:cancel': 'purchase.manage',
+  'purchaseOrders:document': 'purchase.manage',
+  'purchaseOrders:print': 'purchase.manage',
+  'purchaseOrders:exportPdf': 'purchase.manage',
   'quotations:print': 'sale.view',
   'quotations:exportPdf': 'sale.view',
 
