@@ -89,6 +89,22 @@ their account: what they owe, what they have paid.
 > "The shop and the books can't disagree about what Ravi owes, because the
 > amount is worked out from the bills themselves."
 
+### 5b. Send it to their phone (2 min)
+
+Still on that bill, press **WhatsApp**. The number comes from the customer,
+the message is already written, and the sheet is saved as a PDF beside the
+chat that opens.
+
+> "Drag that PDF into the chat and press send. Your customer has the bill on
+> their phone, from your own number, and can reply to you on it."
+
+Be straight about the one keystroke: no app can attach a file to WhatsApp by
+itself — that is WhatsApp's rule, not a gap here — and the alternative is
+Meta's paid API, which is a monthly bill.
+
+The same button sends a quotation, an order to a supplier, and a customer's
+statement of account from Customers → account.
+
 ### 6. End of the day (2 min)
 
 Drawer → close the shift → count the cash → the difference recorded.
@@ -135,6 +151,12 @@ Four designs, your colour, your logo, your terms, your signature line, and the
 columns you want. The arrangement of a GST invoice itself is fixed, because it
 has to be.
 
+**"Can it send bills on WhatsApp?"**
+Yes — it opens WhatsApp on the customer's number with the message written and
+the bill saved as a PDF ready to drag in. The last press is yours: WhatsApp
+does not let any program attach a file on its own, and the paid Meta API that
+can is a monthly cost this product does not have.
+
 **"Who can do what?"**
 Turn sign-in on and a cashier bills and nothing else; a manager runs the shop;
 you see everything. Each bill then records who rang it up.
@@ -154,6 +176,8 @@ so costs nothing while being caught out costs a client:
   to PDF, but no receipt has yet come out of a real 58 mm or 80 mm roll
   printer, and silent printing is not guaranteed by every driver.
 - **The Windows installer** has never been built or run on a clean machine.
+- **Dragging the PDF into WhatsApp Desktop** has been built and checked on
+  Linux, but not yet on Windows with WhatsApp installed.
 
 If the client is on Windows and wants paper receipts, make that the first
 thing you prove on their own machine before taking money.

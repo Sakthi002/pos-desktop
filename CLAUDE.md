@@ -102,9 +102,17 @@ document. Posting is idempotent and `postMissing()` catches up at startup, so
 the books are derived and can always be rebuilt from the documents. A voucher is
 never edited; a correction is a reversing voucher.
 
+A document can also be sent rather than handed over: a bill, a quotation, an
+order or a statement of account is rendered to a picture and a PDF, and
+WhatsApp is opened on the number with the message typed. The app sends
+nothing itself — a `wa.me` link carries text and nothing else — and the paid
+Business API was rejected for a product sold for one payment. See
+`docs/whatsapp.md`.
+
 Two things block a release, both needing hardware this machine does not have:
 the Windows installer has never been built or installed, and printing is
-unverified on a real thermal printer (Phase 0b). See `PLAN.md`.
+unverified on a real thermal printer (Phase 0b). Dragging a sent PDF into
+WhatsApp Desktop is unproved for the same reason. See `PLAN.md`.
 
 `docs/README.md` is the way into the documentation: the whole app in
 `docs/architecture.md`, every path through it in `docs/flows.md`, where each
@@ -115,5 +123,5 @@ what in `docs/users.md`, points in `docs/loyalty.md`, batches and expiry in
 `docs/batches.md`, price levels, credit and the drawer in `docs/trade.md`, a
 price given before a sale in `docs/quotations.md`, what a shop asks a supplier
 for in `docs/purchase-orders.md`, how a bill is dressed in
-`docs/templates.md`, and what a shop needs when something goes wrong in
-`docs/operations.md`.
+`docs/templates.md`, how one reaches a customer's phone in `docs/whatsapp.md`,
+and what a shop needs when something goes wrong in `docs/operations.md`.

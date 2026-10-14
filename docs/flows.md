@@ -224,6 +224,32 @@ printer disagrees with. A failed print says what a shopkeeper can act on —
 
 ---
 
+## 9b. Sending one to a phone
+
+```
+  the shop presses WhatsApp on a bill, quotation, order or account
+        │
+  main builds the same HTML it would print, from the stored record
+        │
+     ┌───────────────────────┬────────────────────────┐
+  offscreen window,        printToPDF            the message,
+  measured then captured   (A4)                  built from the document
+        │                      │                       │
+     picture ─▶ clipboard   PDF ─▶ Documents/POS Outbox │
+                               └──▶ file manager, file selected
+                                                        │
+                                              wa.me link ─▶ WhatsApp,
+                                                 message already typed
+```
+
+The shop drags the PDF into the chat, or pastes the picture with Ctrl+V, and
+presses Enter. Nothing is sent by the app: a `wa.me` link carries text and
+nothing else, and no desktop application can attach a file to a chat from
+outside WhatsApp. `docs/whatsapp.md` says what was considered instead and why
+it was not built.
+
+---
+
 ## 10. What the books do while all this happens
 
 ```

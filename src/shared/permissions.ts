@@ -135,6 +135,11 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   // run a richer check, because a role that cannot do them alone may still do
   // them with a manager standing behind the counter.
 
+  // 'whatsapp:draft' and 'whatsapp:send' are deliberately absent: what may be
+  // sent depends on which document it is, and the channel gate never sees the
+  // payload. Their handler checks 'sale.view' for a bill, a quotation or a
+  // statement, and 'purchase.manage' for an order to a supplier.
+
   'returns:getSale': 'sale.view',
   'returns:get': 'sale.view',
 

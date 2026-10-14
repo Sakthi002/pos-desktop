@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Printer, FileText, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Printer, FileText, X, AlertTriangle, CheckCircle2, MessageCircle } from 'lucide-react';
 import { call } from '../lib/ipc';
+import { WhatsAppDialog } from './WhatsAppDialog';
 import type { PaperSize } from '@shared/receipt';
 import type { AppSettings } from '@shared/settings';
 
@@ -31,6 +32,7 @@ export function ReceiptPreview({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'warn'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     // The document is built in the main process; state is only set once that
@@ -88,75 +90,88 @@ export function ReceiptPreview({
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="modal preview-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <header className="modal-head">
-          <h2>Invoice preview</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            <X size={18} />
-          </button>
-        </header>
+    <>
+      <div className="modal-backdrop" onMouseDown={onClose}>
+        <div className="modal preview-modal" onMouseDown={(e) => e.stopPropagation()}>
+          <header className="modal-head">
+            <h2>Invoice preview</h2>
+            <button className="icon-btn" onClick={onClose} aria-label="Close">
+              <X size={18} />
+            </button>
+          </header>
 
-        <div className="preview-bar">
-          <div className="chips">
-            {SIZES.map((s) => (
+          <div className="preview-bar">
+            <div className="chips">
+              {SIZES.map((s) => (
+                <button
+                  key={s.id}
+                  className={paperSize === s.id ? 'chip on' : 'chip'}
+                  onClick={() => setPaperSize(s.id)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="page-actions">
               <button
-                key={s.id}
-                className={paperSize === s.id ? 'chip on' : 'chip'}
-                onClick={() => setPaperSize(s.id)}
+                className="btn-success"
+                onClick={() => setSending(true)}
+                disabled={busy || !html}
               >
-                {s.label}
+                <MessageCircle size={15} /> WhatsApp
               </button>
-            ))}
+              <button className="btn-info" onClick={() => void savePdf()} disabled={busy || !html}>
+                <FileText size={15} /> Save PDF
+              </button>
+              <button className="btn-primary" onClick={() => void print()} disabled={busy || !html}>
+                <Printer size={15} /> Print
+              </button>
+            </div>
           </div>
 
-          <div className="page-actions">
-            <button className="btn-info" onClick={() => void savePdf()} disabled={busy || !html}>
-              <FileText size={15} /> Save PDF
-            </button>
-            <button className="btn-primary" onClick={() => void print()} disabled={busy || !html}>
-              <Printer size={15} /> Print
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <p className="field-error" role="alert" style={{ padding: '0 20px' }}>
-            {error}
-          </p>
-        )}
-
-        {message && (
-          <div className="preview-note">
-            <p className={message.kind === 'ok' ? 'preview-ok' : 'preview-warn'} role="status">
-              {message.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-              {message.text}
+          {error && (
+            <p className="field-error" role="alert" style={{ padding: '0 20px' }}>
+              {error}
             </p>
-          </div>
-        )}
-
-        <div className="preview-stage">
-          {html ? (
-            <iframe
-              title="Invoice preview"
-              className={`preview-frame ${paperSize}`}
-              srcDoc={html}
-              sandbox=""
-            />
-          ) : (
-            <p className="empty">Rendering…</p>
           )}
-        </div>
 
-        <footer className="modal-foot preview-foot">
-          <span className="field-hint">
-            Printing cannot change a saved sale. If it fails, reprint from here.
-          </span>
-          <button className="btn-secondary" onClick={onClose}>
-            Close
-          </button>
-        </footer>
+          {message && (
+            <div className="preview-note">
+              <p className={message.kind === 'ok' ? 'preview-ok' : 'preview-warn'} role="status">
+                {message.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                {message.text}
+              </p>
+            </div>
+          )}
+
+          <div className="preview-stage">
+            {html ? (
+              <iframe
+                title="Invoice preview"
+                className={`preview-frame ${paperSize}`}
+                srcDoc={html}
+                sandbox=""
+              />
+            ) : (
+              <p className="empty">Rendering…</p>
+            )}
+          </div>
+
+          <footer className="modal-foot preview-foot">
+            <span className="field-hint">
+              Printing cannot change a saved sale. If it fails, reprint from here.
+            </span>
+            <button className="btn-secondary" onClick={onClose}>
+              Close
+            </button>
+          </footer>
+        </div>
       </div>
-    </div>
+
+      {/* Outside the preview's own backdrop: a click to dismiss this dialog
+          must not also dismiss the sheet behind it. */}
+      {sending && <WhatsAppDialog kind="sale" id={saleId} onClose={() => setSending(false)} />}
+    </>
   );
 }

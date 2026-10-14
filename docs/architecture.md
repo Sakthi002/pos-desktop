@@ -48,7 +48,7 @@ a new channel in the contract.
 
 ## 2. One way in: the IPC contract
 
-`src/shared/ipc-contract.ts` is the whole API surface — **120 channels** at the
+`src/shared/ipc-contract.ts` is the whole API surface — **123 channels** at the
 time of writing. Each one appears three times, and TypeScript refuses to build
 if the three disagree:
 
@@ -80,7 +80,7 @@ renderer                 preload            main
    │  throws IpcCallError on { ok: false }
 ```
 
-The 120 channels, by area:
+The 123 channels, by area:
 
 | | | | |
 | --- | --- | --- | --- |
@@ -90,7 +90,7 @@ The 120 channels, by area:
 | purchase orders 7 | suppliers 6 | settings 4 | batches 2 |
 | sales 5 | users 5 | backups 4 | inventory 2 |
 | printing 5 | dialogs 5 | returns 3 | setup 2 |
-| reports 1 | dashboard 1 | audit 1 | |
+| WhatsApp 3 | reports 1 | dashboard 1 | audit 1 |
 
 ---
 

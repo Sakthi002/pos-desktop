@@ -127,6 +127,16 @@ import type { Bill } from './billing';
 import type { PaperSize } from './receipt';
 
 /** Payload schemas, keyed by channel name. */
+/**
+ * What is being sent, and which document it is. A statement is identified by
+ * the customer it belongs to, because it is drawn fresh every time rather than
+ * stored — the other three are documents the shop has already issued.
+ */
+export const whatsappTargetSchema = z.object({
+  kind: z.enum(['sale', 'quotation', 'purchaseOrder', 'statement']),
+  id: z.string().uuid(),
+});
+
 export const ipcContract = {
   'app:getInfo': z.void(),
   'app:getDbStatus': z.void(),
@@ -290,6 +300,13 @@ export const ipcContract = {
     pageSize: z.number().int().min(10).max(200).default(50),
   }),
 
+  'whatsapp:draft': whatsappTargetSchema,
+  'whatsapp:send': whatsappTargetSchema.extend({
+    number: z.string().trim().min(6).max(20),
+    message: z.string().trim().min(1).max(3000),
+  }),
+  'whatsapp:reveal': z.object({ path: z.string().min(1).max(1000) }),
+
   'print:listPrinters': z.void(),
   'print:previewHtml': z.object({
     saleId: z.string().uuid(),
@@ -359,6 +376,37 @@ export interface PrinterInfo {
   displayName: string;
   description: string;
   isDefault: boolean;
+}
+
+/**
+ * What the shop sees before it sends: the number as WhatsApp needs it, the
+ * message it can edit, and — when the number cannot be used — the reason, so
+ * it can be corrected on the customer rather than typed over each time.
+ */
+export interface WhatsappDraft {
+  kind: 'sale' | 'quotation' | 'purchaseOrder' | 'statement';
+  /** The invoice, quotation or order number; the customer's name on a statement. */
+  documentNumber: string;
+  /** Who it is going to, as the document names them. */
+  toName: string | null;
+  /** Digits with the country code, or null when there is nothing usable. */
+  number: string | null;
+  /** What the shop has on file, so it can see what was wrong with it. */
+  rawNumber: string | null;
+  numberProblem: string | null;
+  message: string;
+  amountPaise: number;
+}
+
+/** Where the two files landed, and whether the hand-off worked. */
+export interface WhatsappSend {
+  folder: string;
+  imagePath: string;
+  pdfPath: string;
+  link: string;
+  imageCopied: boolean;
+  opened: boolean;
+  revealed: boolean;
 }
 
 export interface PrintOutcome {
@@ -531,6 +579,10 @@ export interface IpcResponseMap {
   'audit:list': AuditPage;
   'dialog:pickBackupDirectory': PickedPath;
   'dialog:pickBackupFile': PickedPath;
+  'whatsapp:draft': WhatsappDraft;
+  'whatsapp:send': WhatsappSend;
+  'whatsapp:reveal': { revealed: boolean };
+
   'print:listPrinters': PrinterInfo[];
   'print:previewHtml': { html: string; paperSize: PaperSize };
   'print:receipt': PrintOutcome;

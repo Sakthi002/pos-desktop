@@ -38,6 +38,17 @@ import { BackupService, BackupError } from '../services/backup-service';
 import { AuditRepository } from '../db/repositories/audit';
 import { AuthService, AuthError } from '../services/auth-service';
 import { UserRepository } from '../db/repositories/users';
+import { shareOnWhatsapp, revealInFolder } from '../services/whatsapp-service';
+import {
+  purchaseOrderMessage,
+  quotationMessage,
+  saleMessage,
+  statementMessage,
+  toWhatsappNumber,
+  whatsappLink,
+} from '@shared/whatsapp';
+import { buildStatementHtml } from '@shared/statement-document';
+import type { WhatsappDraft } from '@shared/ipc-contract';
 import { CHANNEL_PERMISSIONS, PUBLIC_CHANNELS } from '@shared/permissions';
 import { touch } from '../session';
 
@@ -625,6 +636,171 @@ export function registerIpcHandlers(): void {
     return printDocument(html, settings.receipt.paperSize, printerName ?? null, silent ?? false);
   });
 
+  /**
+   * Sending a document to the person it concerns.
+   *
+   * The sheet is built here, from the stored document, exactly as it would be
+   * printed — the renderer sends a kind and an id and nothing else, so nothing
+   * about what is sent can be rewritten on its way out. The permission follows
+   * the document rather than the channel: a bill is a bill whether it is read
+   * on screen or sent, and an order to a supplier belongs to whoever buys.
+   */
+  const whatsappDocument = (
+    kind: 'sale' | 'quotation' | 'purchaseOrder' | 'statement',
+    id: string,
+  ): { html: string; baseName: string; draft: WhatsappDraft } => {
+    const db = getDatabase();
+    const settings = new SettingsService(db).require();
+    const shopName = settings.shop.name;
+    const upiId = settings.template.upiId?.trim() ? settings.template.upiId.trim() : null;
+
+    const phoneOf = (customerId: string | null): string | null =>
+      customerId ? (customers().get(customerId)?.phone ?? null) : null;
+
+    const draftFor = (input: {
+      documentNumber: string;
+      toName: string | null;
+      rawNumber: string | null;
+      amountPaise: number;
+      message: (number: string | null) => string;
+    }): WhatsappDraft => {
+      const phone = toWhatsappNumber(input.rawNumber);
+      return {
+        kind,
+        documentNumber: input.documentNumber,
+        toName: input.toName,
+        number: phone.number,
+        rawNumber: input.rawNumber,
+        numberProblem: phone.problem,
+        message: input.message(phone.number),
+        amountPaise: input.amountPaise,
+      };
+    };
+
+    if (kind === 'sale') {
+      auth((service) => service.check('sale.view'));
+      const receipt = saleService().getReceipt(id);
+      const doc = documentFor(id, 'a4', false);
+      return {
+        html: doc.html,
+        baseName: receipt.invoiceNumber,
+        draft: draftFor({
+          documentNumber: receipt.invoiceNumber,
+          toName: receipt.customerName,
+          rawNumber: phoneOf(receipt.customerId),
+          amountPaise: receipt.bill.totalPaise,
+          message: () =>
+            saleMessage({
+              shopName,
+              toName: receipt.customerName,
+              documentNumber: receipt.invoiceNumber,
+              amountPaise: receipt.bill.totalPaise,
+              // Only when something is still owed: a customer who paid cash
+              // does not want to be asked for the money again.
+              upiId: receipt.creditPaise > 0 ? upiId : null,
+            }),
+        }),
+      };
+    }
+
+    if (kind === 'quotation') {
+      auth((service) => service.check('sale.view'));
+      const quotation = quoting((service) => service.get(id));
+      const sheet = quotationDocument(id);
+      return {
+        html: sheet.html,
+        baseName: quotation.quotationNumber,
+        draft: draftFor({
+          documentNumber: quotation.quotationNumber,
+          toName: quotation.customerName,
+          rawNumber: phoneOf(quotation.customerId),
+          amountPaise: quotation.totalPaise,
+          message: () =>
+            quotationMessage({
+              shopName,
+              toName: quotation.customerName,
+              documentNumber: quotation.quotationNumber,
+              amountPaise: quotation.totalPaise,
+              byDate: quotation.validUntil,
+            }),
+        }),
+      };
+    }
+
+    if (kind === 'purchaseOrder') {
+      auth((service) => service.check('purchase.manage'));
+      const order = ordering((service) => service.get(id));
+      const sheet = purchaseOrderSheet(id);
+      return {
+        html: sheet.html,
+        baseName: order.orderNumber,
+        draft: draftFor({
+          documentNumber: order.orderNumber,
+          toName: order.supplierName,
+          rawNumber: order.supplierPhone,
+          amountPaise: order.totalPaise,
+          message: () =>
+            purchaseOrderMessage({
+              shopName,
+              toName: order.supplierName,
+              documentNumber: order.orderNumber,
+              amountPaise: order.totalPaise,
+              byDate: order.expectedOn,
+            }),
+        }),
+      };
+    }
+
+    auth((service) => service.check('sale.view'));
+    const account = counter((service) => service.account(id));
+    const receipts = counter((service) => service.receipts(id));
+    const asOfIso = new Date().toISOString();
+    return {
+      html: buildStatementHtml({
+        account,
+        receipts,
+        settings,
+        logoDataUrl: settings.shop.logoPath ? readLogo(settings.shop.logoPath) : null,
+        asOfIso,
+      }),
+      baseName: `Statement ${account.customerName} ${asOfIso.slice(0, 10)}`,
+      draft: draftFor({
+        documentNumber: account.customerName,
+        toName: account.customerName,
+        rawNumber: phoneOf(account.customerId),
+        amountPaise: account.outstandingPaise,
+        message: () =>
+          statementMessage({
+            shopName,
+            toName: account.customerName,
+            amountPaise: account.outstandingPaise,
+            bills: account.bills.filter((bill) => bill.outstandingPaise > 0).length,
+            upiId: account.outstandingPaise > 0 ? upiId : null,
+          }),
+      }),
+    };
+  };
+
+  registerHandler('whatsapp:draft', ({ kind, id }) => whatsappDocument(kind, id).draft);
+
+  registerHandler('whatsapp:send', async ({ kind, id, number, message }) => {
+    const prepared = whatsappDocument(kind, id);
+    const phone = toWhatsappNumber(number);
+    if (!phone.number) {
+      throw new IpcError('BAD_NUMBER', phone.problem ?? 'That is not a number WhatsApp can open.');
+    }
+    return shareOnWhatsapp({
+      html: prepared.html,
+      baseName: prepared.baseName,
+      link: whatsappLink({ number: phone.number, message }),
+    });
+  });
+
+  registerHandler('whatsapp:reveal', ({ path }) => {
+    revealInFolder(path);
+    return { revealed: true };
+  });
+
   registerHandler('dialog:openCsv', async () => {
     const window = focusedWindow();
     return openCsv(window);
@@ -638,7 +814,6 @@ export function registerIpcHandlers(): void {
   registerHandler('dialog:pickLogo', async () => {
     return pickLogo(focusedWindow());
   });
-
 
   registerHandler('dialog:pickBackupDirectory', async () => pickDirectory(focusedWindow()));
   registerHandler('dialog:pickBackupFile', async () => pickBackupFile(focusedWindow()));

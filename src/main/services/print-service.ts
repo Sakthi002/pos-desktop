@@ -108,6 +108,27 @@ export async function printDocument(
   });
 }
 
+/**
+ * The document as PDF bytes. Saving it to a chosen file and sending it to a
+ * customer are two uses of one rendering, so neither can produce a different
+ * sheet from the other.
+ */
+export async function renderPdf(html: string, paperSize: PaperSize): Promise<Buffer> {
+  return withRenderedDocument(html, (contents) =>
+    contents.printToPDF({
+      printBackground: true,
+      ...(paperSize === 'a4'
+        ? // 14mm, the same margin the document asks for and the preview shows.
+          { pageSize: 'A4', margins: { top: 0.55, bottom: 0.55, left: 0.55, right: 0.55 } }
+        : {
+            // Inches, as printToPDF expects.
+            pageSize: { width: paperSize === '58mm' ? 2.28 : 3.15, height: 11.7 },
+            margins: { top: 0, bottom: 0, left: 0, right: 0 },
+          }),
+    }),
+  );
+}
+
 export async function exportPdf(
   window: BrowserWindow,
   html: string,
@@ -122,20 +143,6 @@ export async function exportPdf(
 
   if (result.canceled || !result.filePath) return { saved: false, path: null };
 
-  const data = await withRenderedDocument(html, (contents) =>
-    contents.printToPDF({
-      printBackground: true,
-      ...(paperSize === 'a4'
-        ? // 14mm, the same margin the document asks for and the preview shows.
-          { pageSize: 'A4', margins: { top: 0.55, bottom: 0.55, left: 0.55, right: 0.55 } }
-        : {
-            // Inches, as printToPDF expects.
-            pageSize: { width: paperSize === '58mm' ? 2.28 : 3.15, height: 11.7 },
-            margins: { top: 0, bottom: 0, left: 0, right: 0 },
-          }),
-    }),
-  );
-
-  await writeFile(result.filePath, data);
+  await writeFile(result.filePath, await renderPdf(html, paperSize));
   return { saved: true, path: result.filePath };
 }

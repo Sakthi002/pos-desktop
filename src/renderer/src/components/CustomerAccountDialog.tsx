@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Wallet } from 'lucide-react';
+import { MessageCircle, Wallet } from 'lucide-react';
 import { Modal } from './Modal';
+import { WhatsAppDialog } from './WhatsAppDialog';
 import { Field } from './Field';
 import { call } from '../lib/ipc';
 import { formatPaise, parseRupees } from '@shared/money';
@@ -30,6 +31,7 @@ export function CustomerAccountDialog({
   const [receipts, setReceipts] = useState<CustomerReceipt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const [saleId, setSaleId] = useState('');
   const [method, setMethod] = useState<PaymentMethod>('cash');
@@ -79,7 +81,21 @@ export function CustomerAccountDialog({
   }
 
   return (
-    <Modal title={`${customer.name} — account`} onClose={onClose} width={720}>
+    <Modal
+      title={`${customer.name} — account`}
+      onClose={onClose}
+      width={720}
+      footer={
+        <>
+          <span className="field-hint">
+            A statement is drawn as it stands now — it is not a bill and asks for nothing new.
+          </span>
+          <button className="btn-success" onClick={() => setSending(true)} disabled={!account}>
+            <MessageCircle size={15} /> Send the account
+          </button>
+        </>
+      }
+    >
       {error && (
         <p className="field-error" role="alert">
           {error}
@@ -90,19 +106,25 @@ export function CustomerAccountDialog({
         <>
           <div className="dash-row" style={{ marginBottom: 16 }}>
             <div className="stat">
-              <span className="stat-label">Owes us</span>
-              <strong className="stat-value">{formatPaise(account.outstandingPaise)}</strong>
+              <div className="stat-text">
+                <span className="stat-label">Owes us</span>
+                <strong className="stat-value">{formatPaise(account.outstandingPaise)}</strong>
+              </div>
             </div>
             <div className="stat">
-              <span className="stat-label">Credit limit</span>
-              <strong className="stat-value">
-                {account.creditLimitPaise > 0 ? formatPaise(account.creditLimitPaise) : 'Cash only'}
-              </strong>
-              {account.availablePaise !== null && (
-                <span className="stat-note">
-                  {formatPaise(account.availablePaise)} left before it stops a sale
-                </span>
-              )}
+              <div className="stat-text">
+                <span className="stat-label">Credit limit</span>
+                <strong className="stat-value">
+                  {account.creditLimitPaise > 0
+                    ? formatPaise(account.creditLimitPaise)
+                    : 'Cash only'}
+                </strong>
+                {account.availablePaise !== null && (
+                  <span className="stat-note">
+                    {formatPaise(account.availablePaise)} left before it stops a sale
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -225,6 +247,10 @@ export function CustomerAccountDialog({
             </div>
           )}
         </>
+      )}
+
+      {sending && (
+        <WhatsAppDialog kind="statement" id={customer.id} onClose={() => setSending(false)} />
       )}
     </Modal>
   );

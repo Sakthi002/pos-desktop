@@ -168,6 +168,20 @@ bill against the same quotation is refused. See `docs/quotations.md`.
 
 ---
 
+## Sending on WhatsApp
+
+**Dialog** `components/WhatsAppDialog.tsx` · **Service** `whatsapp-service.ts` ·
+**Shared** `shared/whatsapp.ts`, `shared/statement-document.ts`
+
+A bill, a quotation, an order or a customer's account, rendered as a picture
+and a PDF into **Documents → POS Outbox**, with WhatsApp opened on the right
+number and the message already typed. Writes nothing to the database — a
+statement is drawn from documents that already exist. The permission follows
+the document: `sale.view` for a bill, a quotation or a statement,
+`purchase.manage` for an order. See `docs/whatsapp.md`.
+
+---
+
 ## The counter — shifts and the drawer
 
 **Panel** `components/ShiftPanel.tsx` · **Service** `counter-service.ts` ·

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Printer, FileText, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Printer, FileText, X, AlertTriangle, CheckCircle2, MessageCircle } from 'lucide-react';
 import { call } from '../lib/ipc';
+import { WhatsAppDialog } from './WhatsAppDialog';
 
 /**
  * The quotation sheet as it will come out, shown before anything is sent to a
@@ -20,6 +21,7 @@ export function QuotationPreview({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'warn'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     // The sheet is built in the main process, so the renderer never assembles
@@ -70,60 +72,80 @@ export function QuotationPreview({
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="modal preview-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <header className="modal-head">
-          <h2>{quotationNumber ? `Quotation ${quotationNumber}` : 'Quotation'}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            <X size={18} />
-          </button>
-        </header>
-
-        <div className="preview-bar">
-          <span className="field-hint">A4 sheet</span>
-
-          <div className="page-actions">
-            <button className="btn-info" onClick={() => void savePdf()} disabled={busy || !html}>
-              <FileText size={15} /> Save PDF
+    <>
+      <div className="modal-backdrop" onMouseDown={onClose}>
+        <div className="modal preview-modal" onMouseDown={(e) => e.stopPropagation()}>
+          <header className="modal-head">
+            <h2>{quotationNumber ? `Quotation ${quotationNumber}` : 'Quotation'}</h2>
+            <button className="icon-btn" onClick={onClose} aria-label="Close">
+              <X size={18} />
             </button>
-            <button className="btn-primary" onClick={() => void print()} disabled={busy || !html}>
-              <Printer size={15} /> Print
-            </button>
+          </header>
+
+          <div className="preview-bar">
+            <span className="field-hint">A4 sheet</span>
+
+            <div className="page-actions">
+              <button
+                className="btn-success"
+                onClick={() => setSending(true)}
+                disabled={busy || !html}
+              >
+                <MessageCircle size={15} /> WhatsApp
+              </button>
+              <button className="btn-info" onClick={() => void savePdf()} disabled={busy || !html}>
+                <FileText size={15} /> Save PDF
+              </button>
+              <button className="btn-primary" onClick={() => void print()} disabled={busy || !html}>
+                <Printer size={15} /> Print
+              </button>
+            </div>
           </div>
-        </div>
 
-        {error && (
-          <p className="field-error" role="alert" style={{ padding: '0 20px' }}>
-            {error}
-          </p>
-        )}
-
-        {message && (
-          <div className="preview-note">
-            <p className={message.kind === 'ok' ? 'preview-ok' : 'preview-warn'} role="status">
-              {message.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-              {message.text}
+          {error && (
+            <p className="field-error" role="alert" style={{ padding: '0 20px' }}>
+              {error}
             </p>
-          </div>
-        )}
-
-        <div className="preview-stage">
-          {html ? (
-            <iframe title="Quotation preview" className="preview-frame a4" srcDoc={html} sandbox="" />
-          ) : (
-            <p className="empty">Rendering…</p>
           )}
-        </div>
 
-        <footer className="modal-foot preview-foot">
-          <span className="field-hint">
-            A quotation is not a bill. Nothing is sold and no stock moves until it is billed.
-          </span>
-          <button className="btn-secondary" onClick={onClose}>
-            Close
-          </button>
-        </footer>
+          {message && (
+            <div className="preview-note">
+              <p className={message.kind === 'ok' ? 'preview-ok' : 'preview-warn'} role="status">
+                {message.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                {message.text}
+              </p>
+            </div>
+          )}
+
+          <div className="preview-stage">
+            {html ? (
+              <iframe
+                title="Quotation preview"
+                className="preview-frame a4"
+                srcDoc={html}
+                sandbox=""
+              />
+            ) : (
+              <p className="empty">Rendering…</p>
+            )}
+          </div>
+
+          <footer className="modal-foot preview-foot">
+            <span className="field-hint">
+              A quotation is not a bill. Nothing is sold and no stock moves until it is billed.
+            </span>
+            <button className="btn-secondary" onClick={onClose}>
+              Close
+            </button>
+          </footer>
+        </div>
       </div>
-    </div>
+
+      {/* Outside the preview's own backdrop: a click to dismiss this dialog
+          must not also dismiss the sheet behind it. */}
+      {sending && (
+        <WhatsAppDialog kind="quotation" id={quotationId} onClose={() => setSending(false)} />
+      )}
+    </>
   );
 }

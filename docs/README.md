@@ -26,6 +26,7 @@ SQLite file on that machine.
 | [loyalty.md](loyalty.md) | Points: earning, redeeming, tiers, expiry |
 | [quotations.md](quotations.md) | A price put in writing before anything is sold |
 | [purchase-orders.md](purchase-orders.md) | What a shop asks a supplier to send, and how it becomes a bill |
+| [whatsapp.md](whatsapp.md) | Sending a bill, quotation, order or statement to a phone — and what WhatsApp will not let any app do |
 | [users.md](users.md) | Sign-in, the three roles, who may do what |
 
 ## The shape of it, in one picture
