@@ -5,7 +5,6 @@ import { call } from '../lib/ipc';
 import { INDIAN_STATES } from '@shared/states';
 import type { Customer } from '@shared/customer';
 import { PRICE_LEVELS, PRICE_LEVEL_LABELS, type PriceLevel } from '@shared/trade';
-import { parseRupees } from '@shared/money';
 
 /**
  * A customer needs a name and little else. The state code matters only because
@@ -27,9 +26,6 @@ export function CustomerForm({
   const [gstin, setGstin] = useState(customer?.gstin ?? '');
   const [stateCode, setStateCode] = useState(customer?.stateCode ?? '');
   const [priceLevel, setPriceLevel] = useState<PriceLevel>(customer?.priceLevel ?? 'retail');
-  const [creditLimit, setCreditLimit] = useState(
-    customer?.creditLimitPaise ? (customer.creditLimitPaise / 100).toFixed(2) : '',
-  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +41,9 @@ export function CustomerForm({
         gstin,
         stateCode,
         priceLevel,
-        creditLimitPaise: parseRupees(creditLimit) ?? 0,
+        // Kept on the record for what is already stored; a shop is not asked
+        // for one, and nothing goes by it.
+        creditLimitPaise: customer?.creditLimitPaise ?? 0,
       };
       const saved = customer
         ? await call('customers:update', { id: customer.id, ...payload })
@@ -140,21 +138,6 @@ export function CustomerForm({
               </option>
             ))}
           </select>
-        </Field>
-        <Field
-          label="Credit limit"
-          htmlFor="c-credit"
-          hint="Blank or zero means cash only"
-          plainLabel
-        >
-          <input
-            id="c-credit"
-            className="price-input"
-            inputMode="decimal"
-            placeholder="0.00"
-            value={creditLimit}
-            onChange={(e) => setCreditLimit(e.target.value)}
-          />
         </Field>
       </div>
     </Modal>

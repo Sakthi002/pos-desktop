@@ -40,6 +40,7 @@ import {
   customerQuerySchema,
   customerUpdateSchema,
   type Customer,
+  type CustomerMatches,
   type CustomerPage,
 } from './customer';
 import { reportQuerySchema, type ReportTable } from './reports';
@@ -63,6 +64,7 @@ import {
 import {
   closeShiftSchema,
   customerReceiptSchema,
+  customerReceiptSplitSchema,
   openShiftSchema,
   type CustomerAccount,
   type CustomerReceipt,
@@ -178,7 +180,12 @@ export const ipcContract = {
   'products:importCsv': csvImportSchema,
   'products:csvTemplate': z.void(),
 
-  'customers:search': z.object({ term: z.string().max(100).default('') }),
+  'customers:search': z.object({
+    term: z.string().max(100).default(''),
+    /** The till asks for a screenful at a time and appends as it is scrolled. */
+    limit: z.number().int().min(1).max(100).default(20),
+    offset: z.number().int().min(0).default(0),
+  }),
   'customers:walkIn': z.void(),
   'customers:create': customerInputSchema,
   'customers:list': customerQuerySchema.partial(),
@@ -260,6 +267,7 @@ export const ipcContract = {
   'counter:account': z.object({ customerId: z.string().uuid() }),
   'counter:receipts': z.object({ customerId: z.string().uuid() }),
   'counter:receive': customerReceiptSchema,
+  'counter:receiveSplit': customerReceiptSplitSchema,
   'shift:current': z.void(),
   'shift:recent': z.void(),
   'shift:open': openShiftSchema,
@@ -483,7 +491,7 @@ export interface IpcResponseMap {
   'products:exportCsv': string;
   'products:importCsv': CsvImportResult;
   'products:csvTemplate': string;
-  'customers:search': Customer[];
+  'customers:search': CustomerMatches;
   'customers:walkIn': Customer | null;
   'customers:create': Customer;
   'customers:list': CustomerPage;
@@ -550,6 +558,7 @@ export interface IpcResponseMap {
   'counter:account': CustomerAccount;
   'counter:receipts': CustomerReceipt[];
   'counter:receive': CustomerAccount;
+  'counter:receiveSplit': CustomerAccount;
   'shift:current': Shift | null;
   'shift:recent': Shift[];
   'shift:open': Shift;

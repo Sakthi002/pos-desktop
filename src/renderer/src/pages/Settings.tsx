@@ -528,137 +528,144 @@ export function Settings({
         {tab === 'template' && (
           <div className="template-tab">
             <div className="template-controls">
-            <p className="field-hint" style={{ marginBottom: 12 }}>
-              How an A4 bill and a quotation look. The figures and the GST summary are the same in
-              every design — what changes is the dress.
-            </p>
+              <p className="field-hint" style={{ marginBottom: 12 }}>
+                How an A4 bill and a quotation look. The figures and the GST summary are the same in
+                every design — what changes is the dress.
+              </p>
 
-            <Field label="Design" required>
-              <div className="chips">
-                {INVOICE_THEMES.map((id) => (
-                  <button
-                    type="button"
-                    key={id}
-                    className={draft.template.theme === id ? 'chip on' : 'chip'}
-                    onClick={() => patch('template', { theme: id })}
-                    aria-pressed={draft.template.theme === id}
-                  >
-                    {THEME_LABELS[id]}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <p className="field-hint" style={{ marginTop: -4 }}>
-              {THEME_NOTES[draft.template.theme]}
-            </p>
-
-            <div className="row">
-              <Field label="Colour" htmlFor="s-accent" hint="Used for rules, headings and the total">
-                <div className="logo-row">
-                  <input
-                    id="s-accent"
-                    type="color"
-                    className="colour-well"
-                    value={draft.template.accent}
-                    onChange={(e) => patch('template', { accent: e.target.value.toUpperCase() })}
-                  />
-                  <input
-                    aria-label="Colour as a hex code"
-                    value={draft.template.accent}
-                    maxLength={7}
-                    onChange={(e) => {
-                      const value = e.target.value.toUpperCase();
-                      if (/^#[0-9A-F]{0,6}$/.test(value)) patch('template', { accent: value });
-                    }}
-                  />
+              <Field label="Design" required>
+                <div className="chips">
+                  {INVOICE_THEMES.map((id) => (
+                    <button
+                      type="button"
+                      key={id}
+                      className={draft.template.theme === id ? 'chip on' : 'chip'}
+                      onClick={() => patch('template', { theme: id })}
+                      aria-pressed={draft.template.theme === id}
+                    >
+                      {THEME_LABELS[id]}
+                    </button>
+                  ))}
                 </div>
               </Field>
-              <Field label="Signature line" htmlFor="s-sign" hint="The shop's name when left empty">
-                <input
-                  id="s-sign"
-                  value={draft.template.signatureLabel ?? ''}
-                  placeholder={draft.shop.name}
-                  onChange={(e) => patch('template', { signatureLabel: e.target.value })}
+              <p className="field-hint" style={{ marginTop: -4 }}>
+                {THEME_NOTES[draft.template.theme]}
+              </p>
+
+              <div className="row">
+                <Field
+                  label="Colour"
+                  htmlFor="s-accent"
+                  hint="Used for rules, headings and the total"
+                >
+                  <div className="logo-row">
+                    <input
+                      id="s-accent"
+                      type="color"
+                      className="colour-well"
+                      value={draft.template.accent}
+                      onChange={(e) => patch('template', { accent: e.target.value.toUpperCase() })}
+                    />
+                    <input
+                      aria-label="Colour as a hex code"
+                      value={draft.template.accent}
+                      maxLength={7}
+                      onChange={(e) => {
+                        const value = e.target.value.toUpperCase();
+                        if (/^#[0-9A-F]{0,6}$/.test(value)) patch('template', { accent: value });
+                      }}
+                    />
+                  </div>
+                </Field>
+                <Field
+                  label="Signature line"
+                  htmlFor="s-sign"
+                  hint="The shop's name when left empty"
+                >
+                  <input
+                    id="s-sign"
+                    value={draft.template.signatureLabel ?? ''}
+                    placeholder={draft.shop.name}
+                    onChange={(e) => patch('template', { signatureLabel: e.target.value })}
+                  />
+                </Field>
+              </div>
+
+              <Field label="What the bill shows">
+                <div className="check-row">
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={draft.template.showLogo}
+                      onChange={(e) => patch('template', { showLogo: e.target.checked })}
+                    />
+                    <span>Logo</span>
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={draft.template.showHsn}
+                      onChange={(e) => patch('template', { showHsn: e.target.checked })}
+                    />
+                    <span>HSN column</span>
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={draft.template.showDiscount}
+                      onChange={(e) => patch('template', { showDiscount: e.target.checked })}
+                    />
+                    <span>Discount column</span>
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={draft.template.showSignature}
+                      onChange={(e) => patch('template', { showSignature: e.target.checked })}
+                    />
+                    <span>Signature line</span>
+                  </label>
+                </div>
+              </Field>
+
+              <Field label="Terms" htmlFor="s-terms" hint="Printed at the foot of an A4 bill">
+                <textarea
+                  id="s-terms"
+                  rows={2}
+                  maxLength={500}
+                  value={draft.template.terms ?? ''}
+                  placeholder="Goods once sold are not returnable."
+                  onChange={(e) => patch('template', { terms: e.target.value })}
                 />
               </Field>
-            </div>
 
-            <Field label="What the bill shows">
-              <div className="check-row">
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={draft.template.showLogo}
-                    onChange={(e) => patch('template', { showLogo: e.target.checked })}
-                  />
-                  <span>Logo</span>
-                </label>
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={draft.template.showHsn}
-                    onChange={(e) => patch('template', { showHsn: e.target.checked })}
-                  />
-                  <span>HSN column</span>
-                </label>
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={draft.template.showDiscount}
-                    onChange={(e) => patch('template', { showDiscount: e.target.checked })}
-                  />
-                  <span>Discount column</span>
-                </label>
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={draft.template.showSignature}
-                    onChange={(e) => patch('template', { showSignature: e.target.checked })}
-                  />
-                  <span>Signature line</span>
-                </label>
-              </div>
-            </Field>
+              <Field
+                label="UPI id"
+                htmlFor="s-upi"
+                hint="With one, the bill carries a code the customer scans to pay the exact amount"
+              >
+                <input
+                  id="s-upi"
+                  value={draft.template.upiId ?? ''}
+                  placeholder="sharma@okbank"
+                  onChange={(e) => patch('template', { upiId: e.target.value.trim() })}
+                />
+              </Field>
 
-            <Field label="Terms" htmlFor="s-terms" hint="Printed at the foot of an A4 bill">
-              <textarea
-                id="s-terms"
-                rows={2}
-                maxLength={500}
-                value={draft.template.terms ?? ''}
-                placeholder="Goods once sold are not returnable."
-                onChange={(e) => patch('template', { terms: e.target.value })}
-              />
-            </Field>
-
-            <Field
-              label="UPI id"
-              htmlFor="s-upi"
-              hint="With one, the bill carries a code the customer scans to pay the exact amount"
-            >
-              <input
-                id="s-upi"
-                value={draft.template.upiId ?? ''}
-                placeholder="sharma@okbank"
-                onChange={(e) => patch('template', { upiId: e.target.value.trim() })}
-              />
-            </Field>
-
-            <Field
-              label="Payment details"
-              htmlFor="s-bank"
-              hint="Bank account or anything else a customer paying later needs"
-            >
-              <textarea
-                id="s-bank"
-                rows={2}
-                maxLength={300}
-                value={draft.template.bankDetails ?? ''}
-                placeholder="Bank of India · A/c 001234567890 · IFSC BKID0000123"
-                onChange={(e) => patch('template', { bankDetails: e.target.value })}
-              />
-            </Field>
-
+              <Field
+                label="Payment details"
+                htmlFor="s-bank"
+                hint="Bank account or anything else a customer paying later needs"
+              >
+                <textarea
+                  id="s-bank"
+                  rows={2}
+                  maxLength={300}
+                  value={draft.template.bankDetails ?? ''}
+                  placeholder="Bank of India · A/c 001234567890 · IFSC BKID0000123"
+                  onChange={(e) => patch('template', { bankDetails: e.target.value })}
+                />
+              </Field>
             </div>
 
             <div className="template-sample">

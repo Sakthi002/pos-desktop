@@ -3,6 +3,8 @@ import { Search, Boxes, History, SlidersHorizontal, AlertTriangle } from 'lucide
 import { call } from '../lib/ipc';
 import type { Batch } from '@shared/batches';
 import { MovementHistory } from '../components/MovementHistory';
+import { Pager } from '../components/Pager';
+import { PAGE_SIZES } from '../lib/paging';
 import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { formatQuantity, precisionFor } from '@shared/quantity';
 import { formatPaise } from '@shared/money';
@@ -25,7 +27,7 @@ export function Inventory() {
   const [tab, setTab] = useState<Tab>('all');
   const [batches, setBatches] = useState<Batch[]>([]);
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function Inventory() {
     } finally {
       setLoading(false);
     }
-  }, [search, tab, page]);
+  }, [search, tab, page, pageSize]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async IPC load
@@ -273,27 +275,17 @@ export function Inventory() {
             </table>
           </div>
 
-          {pages > 1 && (
-            <div className="pager">
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </button>
-              <span>
-                Page {page} of {pages}
-              </span>
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pager
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
 

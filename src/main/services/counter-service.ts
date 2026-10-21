@@ -15,6 +15,7 @@ import type { Database } from 'better-sqlite3';
 import {
   closeShiftSchema,
   customerReceiptSchema,
+  customerReceiptSplitSchema,
   openShiftSchema,
   type CustomerAccount,
   type CustomerReceipt,
@@ -111,7 +112,9 @@ export class CounterService {
 
   /**
    * Whether a bill may be left part-paid. A walk-in cannot owe anything —
-   * there is nobody to ask — and a customer with no limit is cash only.
+   * there is nobody to ask — and that is the whole of the rule. A shop lends
+   * what it is willing to lend; the figure it goes by is what the customer
+   * already owes, which the till puts in front of it.
    */
   assertCanOwe(customerId: string | null, creditPaise: number): void {
     if (creditPaise <= 0) return;
@@ -120,23 +123,6 @@ export class CounterService {
       throw new CounterError(
         'NO_CUSTOMER',
         'A bill can only be left unpaid against a named customer.',
-      );
-    }
-
-    const account = this.account(customerId);
-    if (account.creditLimitPaise <= 0) {
-      throw new CounterError(
-        'NO_CREDIT',
-        `${account.customerName} has no credit limit. Set one before billing on account.`,
-      );
-    }
-
-    const after = account.outstandingPaise + creditPaise;
-    if (after > account.creditLimitPaise) {
-      throw new CounterError(
-        'OVER_LIMIT',
-        `${account.customerName} would owe more than their limit. ` +
-          `Owing now, and the limit, are the figures to look at.`,
       );
     }
   }
@@ -224,6 +210,31 @@ export class CounterService {
     });
 
     return this.account(parsed.customerId);
+  }
+
+  /**
+   * The same money, handed over in more than one form. Each part is a receipt
+   * of its own — the drawer counts the cash and only the cash — and because
+   * every part is checked against what is left owing as the ones before it go
+   * in, the last part cannot take the account past settled. One transaction,
+   * so a UPI part that is refused does not leave the cash part recorded.
+   */
+  recordReceipts(input: unknown): CustomerAccount {
+    const parsed = customerReceiptSplitSchema.parse(input);
+
+    return inTransaction(this.db, () => {
+      let account = this.account(parsed.customerId);
+      for (const part of parsed.parts) {
+        account = this.recordReceipt({
+          customerId: parsed.customerId,
+          saleId: parsed.saleId ?? null,
+          method: part.method,
+          amountPaise: part.amountPaise,
+          reference: part.reference ?? null,
+        });
+      }
+      return account;
+    });
   }
 
   // ─── The drawer ───────────────────────────────────────────────────────────

@@ -148,18 +148,22 @@ describe('selling on credit', () => {
     expect(() => sell({ payPaise: 4000, customerId: null, onCredit: true })).toThrow(SaleError);
   });
 
-  it('refuses credit to a customer with no limit', () => {
-    const cashOnly = customers.create({ name: 'Passing Trade' }).id;
-    expect(() => sell({ payPaise: 0, customerId: cashOnly, onCredit: true })).toThrow(SaleError);
+  it('lets any named customer owe, because nothing caps them', () => {
+    const noLimit = customers.create({ name: 'Passing Trade' }).id;
+    const sale = sell({ payPaise: 0, customerId: noLimit, onCredit: true });
+
+    expect(sale.creditPaise).toBe(10000);
+    expect(counter.account(noLimit).outstandingPaise).toBe(10000);
   });
 
-  it('stops a bill that would take them past their limit', () => {
-    // The limit is ₹5,000 and the bill is ₹100, so it takes a few of them.
+  it('keeps letting them owe, and keeps the figure, however much it is', () => {
+    // Nothing caps a customer any more: a shop lends what it will lend, and
+    // what it goes by is the figure the till puts in front of it.
     for (let i = 0; i < 50; i += 1) sell({ payPaise: 0, customerId: shopId, onCredit: true });
 
     expect(counter.account(shopId).outstandingPaise).toBe(500000);
-    expect(counter.account(shopId).availablePaise).toBe(0);
-    expect(() => sell({ payPaise: 0, customerId: shopId, onCredit: true })).toThrow(SaleError);
+    expect(() => sell({ payPaise: 0, customerId: shopId, onCredit: true })).not.toThrow();
+    expect(counter.account(shopId).outstandingPaise).toBe(510000);
   });
 
   it('puts the unpaid part on the customer in the books', () => {
@@ -231,6 +235,45 @@ describe('taking money against an account', () => {
     });
 
     expect(after.outstandingPaise).toBe(5000);
+  });
+
+  it('takes one payment in two forms, and counts only the cash as cash', () => {
+    const sale = sell({ payPaise: 0, customerId: shopId, onCredit: true });
+
+    const after = counter.recordReceipts({
+      customerId: shopId,
+      saleId: sale.id,
+      parts: [
+        { method: 'cash', amountPaise: 6000 },
+        { method: 'upi', amountPaise: 4000 },
+      ],
+    });
+
+    expect(after.outstandingPaise).toBe(0);
+    expect(counter.receipts(shopId)).toHaveLength(2);
+
+    const rows = new LedgerService(db).trialBalance(EVERYTHING.fromIso, EVERYTHING.toIso);
+    expect(rows.find((r) => r.code === ACCOUNTS.receivable)?.balancePaise).toBe(0);
+    expect(rows.find((r) => r.code === ACCOUNTS.cash)?.balancePaise).toBe(6000);
+    expect(rows.find((r) => r.code === ACCOUNTS.upi)?.balancePaise).toBe(4000);
+  });
+
+  it('writes no part of a split that overshoots what is owed', () => {
+    sell({ payPaise: 0, customerId: shopId, onCredit: true });
+
+    expect(() =>
+      counter.recordReceipts({
+        customerId: shopId,
+        parts: [
+          { method: 'cash', amountPaise: 6000 },
+          { method: 'upi', amountPaise: 9000 },
+        ],
+      }),
+    ).toThrow(CounterError);
+
+    // The cash part went in before the UPI part was refused; neither survives.
+    expect(counter.account(shopId).outstandingPaise).toBe(10000);
+    expect(counter.receipts(shopId)).toHaveLength(0);
   });
 
   it('counts a credit note against what they owe', () => {

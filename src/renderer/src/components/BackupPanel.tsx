@@ -158,7 +158,7 @@ export function BackupPanel({
 
       <div className="page-actions" style={{ margin: '4px 0 18px' }}>
         <button
-          className="btn-success"
+          className="btn-primary"
           onClick={() => void backupNow()}
           disabled={busy || !backup.directory}
         >

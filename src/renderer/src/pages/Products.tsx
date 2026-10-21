@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { ProductForm } from '../components/ProductForm';
+import { Pager } from '../components/Pager';
+import { PAGE_SIZES } from '../lib/paging';
 import { CsvImportDialog } from '../components/CsvImportDialog';
 import { LabelDialog } from '../components/LabelDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -48,7 +50,7 @@ export function Products({ settings }: { settings: AppSettings }) {
   const [sort, setSort] = useState<Sort>('name');
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
-  const pageSize = 50;
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function Products({ settings }: { settings: AppSettings }) {
     } finally {
       setLoading(false);
     }
-  }, [search, status, categoryId, sort, direction, page]);
+  }, [search, status, categoryId, sort, direction, page, pageSize]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async IPC load
@@ -308,27 +310,17 @@ export function Products({ settings }: { settings: AppSettings }) {
             </table>
           </div>
 
-          {pages > 1 && (
-            <div className="pager">
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </button>
-              <span>
-                Page {page} of {pages}
-              </span>
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pager
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
 

@@ -48,8 +48,8 @@ export function QuotationEntry({
   const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
-    void call('customers:search', { term: '' })
-      .then((list) => setCustomers(list.filter((c) => !c.isWalkIn)))
+    void call('customers:search', { term: '', limit: 100, offset: 0 })
+      .then((found) => setCustomers(found.items.filter((c) => !c.isWalkIn)))
       .catch(() => undefined);
   }, []);
 

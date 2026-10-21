@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { FileText, Plus, Search, Printer, Eye, PackageCheck } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { PurchaseOrderEntry } from '../components/PurchaseOrderEntry';
+import { Pager } from '../components/Pager';
+import { PAGE_SIZES } from '../lib/paging';
 import { PurchaseOrderDetail } from '../components/PurchaseOrderDetail';
 import { PurchaseOrderPreview } from '../components/PurchaseOrderPreview';
 import { formatPaise } from '@shared/money';
@@ -57,7 +59,7 @@ export function PurchaseOrders({ onReceive }: { onReceive: (orderId: string) => 
   const [viewing, setViewing] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<PurchaseOrderSummary | null>(null);
 
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
   const load = useCallback(async () => {
@@ -74,7 +76,7 @@ export function PurchaseOrders({ onReceive }: { onReceive: (orderId: string) => 
     } finally {
       setLoading(false);
     }
-  }, [search, status, page]);
+  }, [search, status, page, pageSize]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async IPC load
@@ -202,27 +204,17 @@ export function PurchaseOrders({ onReceive }: { onReceive: (orderId: string) => 
             </table>
           </div>
 
-          {pages > 1 && (
-            <div className="pager">
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </button>
-              <span>
-                Page {page} of {pages}
-              </span>
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pager
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
 

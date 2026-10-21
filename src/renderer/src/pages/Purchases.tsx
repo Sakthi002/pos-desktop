@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Plus, Search, PackagePlus, Eye, CheckCircle2, X } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { PurchaseEntry } from '../components/PurchaseEntry';
+import { Pager } from '../components/Pager';
+import { PAGE_SIZES } from '../lib/paging';
 import { PurchaseDetail } from '../components/PurchaseDetail';
 import { formatPaise } from '@shared/money';
 import type { PurchaseQuery, PurchaseSummary, Supplier } from '@shared/purchasing';
@@ -39,7 +41,7 @@ export function Purchases({
   const [status, setStatus] = useState<Status>('all');
   const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function Purchases({
     } finally {
       setLoading(false);
     }
-  }, [search, supplierId, status, unpaidOnly, page]);
+  }, [search, supplierId, status, unpaidOnly, page, pageSize]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async IPC load
@@ -250,27 +252,17 @@ export function Purchases({
             </table>
           </div>
 
-          {pages > 1 && (
-            <div className="pager">
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </button>
-              <span>
-                Page {page} of {pages}
-              </span>
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pager
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
 

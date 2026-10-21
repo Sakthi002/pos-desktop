@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, FolderOpen, MessageCircle, Send } from 'lucide-react';
+import { CheckCircle2, FolderOpen } from 'lucide-react';
+import { WhatsAppIcon } from './WhatsAppIcon';
 import { Modal } from './Modal';
 import { Field } from './Field';
 import { call } from '../lib/ipc';
@@ -94,11 +95,11 @@ export function WhatsAppDialog({
               </button>
             )}
             <button
-              className="btn-success"
+              className="btn-whatsapp"
               onClick={() => void send()}
               disabled={busy || !draft || number.trim() === '' || message.trim() === ''}
             >
-              <Send size={15} /> {busy ? 'Preparing…' : sent ? 'Open again' : 'Open WhatsApp'}
+              <WhatsAppIcon /> {busy ? 'Preparing…' : sent ? 'Open again' : 'Open WhatsApp'}
             </button>
           </div>
         </>
@@ -162,10 +163,9 @@ export function WhatsAppDialog({
           </Field>
 
           <p className="field-hint" style={{ marginTop: -4 }}>
-            <MessageCircle size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            WhatsApp opens with this message typed, and the A4 sheet is saved beside it.{' '}
-            <strong>Drag the PDF</strong> from the window that opens into the chat to send it as a
-            file — or press Ctrl+V to paste it as a picture instead.
+            <WhatsAppIcon size={13} /> WhatsApp opens with this message typed, and the A4 sheet is
+            saved beside it. <strong>Drag the PDF</strong> from the window that opens into the chat
+            to send it as a file — or press Ctrl+V to paste it as a picture instead.
           </p>
 
           {sent && (

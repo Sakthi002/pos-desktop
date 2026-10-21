@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Printer, FileText, X, AlertTriangle, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Printer, FileText, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { WhatsAppIcon } from './WhatsAppIcon';
 import { call } from '../lib/ipc';
 import { WhatsAppDialog } from './WhatsAppDialog';
 import type { PaperSize } from '@shared/receipt';
@@ -115,11 +116,11 @@ export function ReceiptPreview({
 
             <div className="page-actions">
               <button
-                className="btn-success"
+                className="btn-whatsapp"
                 onClick={() => setSending(true)}
                 disabled={busy || !html}
               >
-                <MessageCircle size={15} /> WhatsApp
+                <WhatsAppIcon /> WhatsApp
               </button>
               <button className="btn-info" onClick={() => void savePdf()} disabled={busy || !html}>
                 <FileText size={15} /> Save PDF

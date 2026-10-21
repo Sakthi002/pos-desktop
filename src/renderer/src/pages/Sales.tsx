@@ -3,6 +3,8 @@ import { Search, Receipt, Printer, Ban, Eye, CheckCircle2, X } from 'lucide-reac
 import { call } from '../lib/ipc';
 import { useCanWithApproval } from '../lib/session';
 import { SaleDetail } from '../components/SaleDetail';
+import { Pager } from '../components/Pager';
+import { PAGE_SIZES } from '../lib/paging';
 import { ReturnDialog } from '../components/ReturnDialog';
 import { VoidSaleDialog } from '../components/VoidSaleDialog';
 import { ReceiptPreview } from '../components/ReceiptPreview';
@@ -72,7 +74,7 @@ export function Sales({ settings }: { settings: AppSettings }) {
   const [method, setMethod] = useState<PaymentMethod | ''>('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +109,7 @@ export function Sales({ settings }: { settings: AppSettings }) {
     } finally {
       setLoading(false);
     }
-  }, [search, from, to, method, status, page]);
+  }, [search, from, to, method, status, page, pageSize]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async IPC load
@@ -341,27 +343,17 @@ export function Sales({ settings }: { settings: AppSettings }) {
             </table>
           </div>
 
-          {pages > 1 && (
-            <div className="pager">
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </button>
-              <span>
-                Page {page} of {pages}
-              </span>
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pager
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
 

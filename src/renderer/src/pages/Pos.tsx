@@ -16,6 +16,11 @@ import {
   PackageOpen,
   LayoutGrid,
   Star,
+  SlidersHorizontal,
+  Check,
+  ChevronDown,
+  Grid3x3,
+  List,
 } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { hueFor, hueStyle } from '../lib/hues';
@@ -36,6 +41,18 @@ import {
   type CustomerAccount,
   type PriceLevel,
 } from '@shared/trade';
+
+/** How many names the customer picker fetches at a time. */
+const PICKER_PAGE = 10;
+
+/** How the wall of products is shown. Remembered between sessions. */
+type Wall = 'tiles' | 'compact' | 'list';
+const WALL_KEY = 'pos.wall';
+const WALLS = [
+  { id: 'tiles', label: 'Tiles', Icon: LayoutGrid },
+  { id: 'compact', label: 'Compact', Icon: Grid3x3 },
+  { id: 'list', label: 'List', Icon: List },
+] as const;
 
 interface CartLine {
   product: Product;
@@ -80,10 +97,13 @@ const initialsOf = (name: string): string =>
 
 export function Pos({
   settings,
+  canManageCustomers,
   quotationId = null,
   onQuotationLoaded,
 }: {
   settings: AppSettings;
+  /** Whether this operator may open a customer account from the till. */
+  canManageCustomers: boolean;
   /** A quotation to bill: its lines, customer and prices fill the till. */
   quotationId?: string | null;
   onQuotationLoaded?: () => void;
@@ -101,6 +121,19 @@ export function Pos({
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  // A list until a shop says otherwise: it reads at a glance, holds the most
+  // products on a screen, and does not ask a cashier to know a thing by its
+  // initials. The guards are for a profile that refuses storage, where the
+  // choice simply does not outlive the window.
+  const [wall, setWall] = useState<Wall>(() => {
+    try {
+      const saved = localStorage.getItem(WALL_KEY);
+      return saved === 'tiles' || saved === 'compact' ? saved : 'list';
+    } catch {
+      return 'list';
+    }
+  });
   /** Bumped by anything that moves stock, so the wall re-reads it. */
   const [stockVersion, setStockVersion] = useState(0);
   /** Set while a quoted price is being billed, so the sale can settle it. */
@@ -113,6 +146,10 @@ export function Pos({
   const [held, setHeld] = useState<HeldCart[]>([]);
   const [showCustomers, setShowCustomers] = useState(false);
   const [customerList, setCustomerList] = useState<Customer[]>([]);
+  /** How many match in all, against what has been scrolled into view so far. */
+  const [customerTotal, setCustomerTotal] = useState(0);
+  const [customerTerm, setCustomerTerm] = useState('');
+  const [customersBusy, setCustomersBusy] = useState(false);
   const [paying, setPaying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -121,6 +158,7 @@ export function Pos({
   const [error, setError] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
   // Regenerated per checkout attempt, so a retry of the same sale is safe but a
   // genuinely new sale is never mistaken for a duplicate.
   const idempotencyKey = useRef<string>(crypto.randomUUID());
@@ -134,7 +172,7 @@ export function Pos({
     void call('catalogue:listCategories')
       .then(setCategories)
       .catch(() => undefined);
-    // A product nobody has filed is still a product to sell, so the rail
+    // A product nobody has filed is still a product to sell, so the filter
     // offers them together rather than leaving them findable only by search.
     void call('products:search', { status: 'active', categoryId: UNCATEGORISED, pageSize: 10 })
       .then((page) => setUnfiled(page.total))
@@ -240,6 +278,11 @@ export function Pos({
       .catch(() => undefined);
   }, [cardHolderId]);
 
+  // Whose account the payment screen may use: held rather than cleared, so it
+  // is matched to the customer on the bill rather than trusted. A walk-in, or
+  // an account still in flight, has none.
+  const onAccount = account && account.customerId === cardHolderId ? account : null;
+
   // Derived, not stored: an empty cart or a walk-in has nothing to offer, and
   // the last customer's card must not linger on screen while the next ask is
   // still in flight.
@@ -276,8 +319,12 @@ export function Pos({
         );
         setPriceLevel(quotation.priceLevel);
         if (quotation.customerId) {
-          const list = await call('customers:search', { term: quotation.customerName ?? '' });
-          const match = list.find((c) => c.id === quotation.customerId);
+          const found = await call('customers:search', {
+            term: quotation.customerName ?? '',
+            limit: 20,
+            offset: 0,
+          });
+          const match = found.items.find((c) => c.id === quotation.customerId);
           if (match) setCustomer(match);
         }
         setBillingQuotation(quotation.id);
@@ -431,14 +478,96 @@ export function Pos({
     }
   }
 
-  async function openCustomers() {
+  // A walk-in who wants to pay the rest later, given an account without losing
+  // the bill: the customer is created, put on this sale, and their account is
+  // read back before the payment screen is told anything, so the credit line
+  // appears with the real limit rather than a guess at it.
+  async function openAccountFor(input: { name: string; phone: string }) {
+    const created = await call('customers:create', {
+      name: input.name,
+      phone: input.phone,
+      email: '',
+      address: '',
+      gstin: '',
+      stateCode: '',
+      priceLevel: 'retail',
+      // No cap unless the shop sets one on the Customers screen: a limit is a
+      // brake for a customer who needs one, not a form to fill at the counter.
+      creditLimitPaise: 0,
+    });
+    setCustomer(created);
+    setRedeemPoints(0);
+    setAccount(await call('counter:account', { customerId: created.id }));
+  }
+
+  function openCustomers() {
+    setCustomerTerm('');
     setShowCustomers(true);
+  }
+
+  // A shop knows a customer by their phone as often as by their name, and the
+  // search behind this matches either. Asked of SQLite on the same machine, so
+  // it answers as fast as the operator types — a screenful at a time, with the
+  // next one fetched as the list is scrolled rather than all three hundred at
+  // once.
+  useEffect(() => {
+    if (!showCustomers) return;
+    let cancelled = false;
+    void call('customers:search', { term: customerTerm.trim(), limit: PICKER_PAGE, offset: 0 })
+      .then((found) => {
+        if (cancelled) return;
+        setCustomerList(found.items);
+        setCustomerTotal(found.total);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [customerTerm, showCustomers]);
+
+  async function moreCustomers() {
+    if (customersBusy || customerList.length >= customerTotal) return;
+    setCustomersBusy(true);
     try {
-      setCustomerList(await call('customers:search', { term: '' }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const found = await call('customers:search', {
+        term: customerTerm.trim(),
+        limit: PICKER_PAGE,
+        offset: customerList.length,
+      });
+      setCustomerList((current) => [...current, ...found.items]);
+      setCustomerTotal(found.total);
+    } catch {
+      // Leave what is already on screen; the next scroll tries again.
+    } finally {
+      setCustomersBusy(false);
     }
   }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WALL_KEY, wall);
+    } catch {
+      /* Nothing to do: the wall simply comes back as a list next time. */
+    }
+  }, [wall]);
+
+  // A menu over the tiles must not outlive the next thing the cashier does:
+  // a press anywhere else, or Escape, puts it away.
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!filterRef.current?.contains(e.target as Node)) setFilterOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFilterOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [filterOpen]);
 
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────
 
@@ -463,64 +592,97 @@ export function Pos({
 
   const units = cart.reduce((a, l) => a + l.quantityMilli / 1000, 0);
 
+  // One list behind both the button and the menu, so what the button says is
+  // always what the menu has ticked.
+  const filters = [
+    { id: '', label: 'All products', hue: 'indigo' as const, Icon: LayoutGrid },
+    ...categories.map((c) => ({ id: c.id, label: c.name, hue: hueFor(c.name), Icon: Package })),
+    ...(unfiled > 0
+      ? [{ id: UNCATEGORISED, label: 'Unfiled', hue: 'rose' as const, Icon: PackageOpen }]
+      : []),
+  ];
+  const active = filters.find((f) => f.id === activeCategory) ?? filters[0]!;
+
   return (
     <div className="pos">
       <section className="pos-catalogue">
         <div className="pos-browse">
-          {/* A rail holding nothing but "All" is only a thinner screen. */}
-          {categories.length > 0 && (
-            <nav className="cat-rail" aria-label="Categories">
-              <button
-                className={activeCategory === '' ? 'cat on' : 'cat'}
-                style={hueStyle('indigo')}
-                onClick={() => setActiveCategory('')}
-              >
-                <span className="cat-mark">
-                  <LayoutGrid size={18} />
-                </span>
-                <span>All</span>
-              </button>
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  className={activeCategory === c.id ? 'cat on' : 'cat'}
-                  style={hueStyle(hueFor(c.name))}
-                  onClick={() => setActiveCategory(c.id)}
-                >
-                  <span className="cat-mark">
-                    <Package size={18} />
-                  </span>
-                  <span>{c.name}</span>
-                </button>
-              ))}
-              {unfiled > 0 && (
-                <button
-                  className={activeCategory === UNCATEGORISED ? 'cat on' : 'cat'}
-                  style={hueStyle('rose')}
-                  onClick={() => setActiveCategory(UNCATEGORISED)}
-                  title={`${unfiled} product${unfiled === 1 ? '' : 's'} with no category`}
-                >
-                  <span className="cat-mark">
-                    <PackageOpen size={18} />
-                  </span>
-                  <span>Unfiled</span>
-                </button>
-              )}
-            </nav>
-          )}
-
           <div className="pos-main">
-            <div className="pos-search">
-              <Search size={17} />
-              <input
-                ref={searchRef}
-                autoFocus
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={onSearchKeyDown}
-                placeholder="Scan a barcode, or type a name"
-              />
-              <kbd>F2</kbd>
+            <div className="pos-find">
+              <div className="pos-search">
+                <Search size={17} />
+                <input
+                  ref={searchRef}
+                  autoFocus
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={onSearchKeyDown}
+                  placeholder="Scan a barcode, or type a name"
+                />
+                <kbd>F2</kbd>
+              </div>
+
+              {/* A filter offering nothing but "All" is only a narrower wall. */}
+              {filters.length > 1 && (
+                <div className="pos-filter" ref={filterRef}>
+                  <button
+                    className={activeCategory === '' ? 'filter-btn' : 'filter-btn on'}
+                    style={hueStyle(active.hue)}
+                    aria-haspopup="menu"
+                    aria-expanded={filterOpen}
+                    onClick={() => setFilterOpen((open) => !open)}
+                  >
+                    <SlidersHorizontal size={17} />
+                    {/* Which filter is on has to be readable without opening
+                        the menu: the rail used to say so by itself. */}
+                    <span>{activeCategory === '' ? 'Filter' : active.label}</span>
+                    <ChevronDown size={15} />
+                  </button>
+
+                  {filterOpen && (
+                    <div className="filter-menu" role="menu">
+                      {filters.map((f) => {
+                        const Icon = f.Icon;
+                        return (
+                          <button
+                            key={f.id || 'all'}
+                            role="menuitemradio"
+                            aria-checked={f.id === activeCategory}
+                            className={f.id === activeCategory ? 'filter-item on' : 'filter-item'}
+                            style={hueStyle(f.hue)}
+                            onClick={() => {
+                              setActiveCategory(f.id);
+                              setFilterOpen(false);
+                              searchRef.current?.focus();
+                            }}
+                          >
+                            <span className="cat-mark">
+                              <Icon size={16} />
+                            </span>
+                            <span>{f.label}</span>
+                            {f.id === activeCategory && <Check size={16} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="wall-switch" role="group" aria-label="How products are shown">
+                {WALLS.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    className={wall === id ? 'wall-btn on' : 'wall-btn'}
+                    title={label}
+                    aria-label={label}
+                    aria-pressed={wall === id}
+                    onClick={() => setWall(id)}
+                  >
+                    <Icon size={17} />
+                  </button>
+                ))}
+              </div>
             </div>
 
             {error && (
@@ -555,7 +717,7 @@ export function Pos({
                 <p>Add products, or import a catalogue from CSV, and they appear here.</p>
               </div>
             ) : (
-              <div className="tile-grid">
+              <div className={`tile-grid ${wall}`}>
                 {grid.map((p) => {
                   const tint = tintFor(p.id);
                   const precision = precisionFor(p.unitCode);
@@ -569,14 +731,14 @@ export function Pos({
                     <button key={p.id} className="tile" onClick={() => addProduct(p)}>
                       <span className="tile-art" style={{ background: tint.bg, color: tint.ink }}>
                         {initialsOf(p.name)}
-                        {p.trackInventory && (
-                          <span className={`tile-stock${out ? ' out' : low ? ' low' : ''}`}>
-                            {out
-                              ? 'None left'
-                              : `${formatQuantity(p.stockMilli, precision)} ${p.unitCode}`}
-                          </span>
-                        )}
                       </span>
+                      {p.trackInventory && (
+                        <span className={`tile-stock${out ? ' out' : low ? ' low' : ''}`}>
+                          {out
+                            ? 'None left'
+                            : `${formatQuantity(p.stockMilli, precision)} ${p.unitCode}`}
+                        </span>
+                      )}
                       <span className="tile-name">{p.name}</span>
                       {p.sku && <span className="tile-sku mono">{p.sku}</span>}
                       <span className="tile-foot">
@@ -616,7 +778,7 @@ export function Pos({
             </div>
           )}
 
-          {priceLevel !== 'retail' || (account && account.creditLimitPaise > 0) ? (
+          {priceLevel !== 'retail' || (onAccount && onAccount.outstandingPaise > 0) ? (
             <div className="terms-strip">
               <select
                 className="level-select"
@@ -630,11 +792,10 @@ export function Pos({
                   </option>
                 ))}
               </select>
-              {account && account.creditLimitPaise > 0 && (
-                <span className="terms-note">
-                  Owes {formatPaise(account.outstandingPaise)} of{' '}
-                  {formatPaise(account.creditLimitPaise)}
-                </span>
+              {/* The one figure worth interrupting a sale for: what this
+                  customer already owes, before they are given any more. */}
+              {onAccount && onAccount.outstandingPaise > 0 && (
+                <span className="owes-note">Owes {formatPaise(onAccount.outstandingPaise)}</span>
               )}
             </div>
           ) : null}
@@ -895,13 +1056,12 @@ export function Pos({
           busy={saving}
           error={payError}
           credit={
-            account && account.creditLimitPaise > 0
-              ? {
-                  customerName: account.customerName,
-                  availablePaise: account.availablePaise,
-                }
+            onAccount
+              ? { customerName: onAccount.customerName, owesPaise: onAccount.outstandingPaise }
               : null
           }
+          canOpenAccount={canManageCustomers}
+          onOpenAccount={openAccountFor}
           onConfirm={(payments, onCredit) => void completeSale(payments, onCredit)}
           onClose={() => {
             setPaying(false);
@@ -953,24 +1113,55 @@ export function Pos({
               </button>
             </header>
             <div className="modal-body">
-              <ul className="customer-list">
-                {customerList.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => {
-                        setCustomer(c);
-                        setRedeemPoints(0);
-                        changeLevel(c.priceLevel);
-                        setShowCustomers(false);
-                      }}
-                    >
-                      <strong>{c.name}</strong>
-                      {c.phone && <span>{c.phone}</span>}
-                      {c.gstin && <em>{c.gstin}</em>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="search-box" style={{ marginBottom: 12 }}>
+                <Search size={15} />
+                <input
+                  autoFocus
+                  value={customerTerm}
+                  onChange={(e) => setCustomerTerm(e.target.value)}
+                  placeholder="Search by name or phone"
+                />
+              </div>
+
+              {customerList.length === 0 && <p className="empty">Nobody by that name or number.</p>}
+
+              <div
+                className="picker-list"
+                onScroll={(e) => {
+                  const list = e.currentTarget;
+                  // Near enough the end that the next names should already be
+                  // on their way.
+                  if (list.scrollHeight - list.scrollTop - list.clientHeight < 60) {
+                    void moreCustomers();
+                  }
+                }}
+              >
+                <ul className="customer-list">
+                  {customerList.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        onClick={() => {
+                          setCustomer(c);
+                          setRedeemPoints(0);
+                          changeLevel(c.priceLevel);
+                          setShowCustomers(false);
+                        }}
+                      >
+                        <strong>{c.name}</strong>
+                        {c.phone && <span>{c.phone}</span>}
+                        {c.gstin && <em>{c.gstin}</em>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {customerTotal > customerList.length && (
+                <p className="list-note">
+                  {customerList.length} of {customerTotal} shown — scroll for more, or type a name
+                  or number.
+                </p>
+              )}
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@
 import type { Database } from 'better-sqlite3';
 import {
   dashboardQuerySchema,
+  type DashboardDay,
   type DashboardQuery,
   type DashboardSummary,
   type DashboardTakings,
@@ -34,6 +35,12 @@ const weekEnding = (range: Range): Range => {
   const from = new Date(range.fromIso);
   from.setDate(from.getDate() - 6);
   return { fromIso: from.toISOString(), toIso: range.toIso };
+};
+
+/** A day as the reports group them: the shop's own local date. */
+const localDay = (at: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
 };
 
 /** The same span of days, ending where the given one begins. */
@@ -72,6 +79,30 @@ export class DashboardService {
     };
   }
 
+  /**
+   * The week as seven days rather than one figure. A day with no sales is a
+   * day worth seeing, so the gaps are filled rather than skipped — a chart
+   * that leaves them out would draw a quiet Tuesday as if it never happened.
+   */
+  private days(week: Range): DashboardDay[] {
+    const byDay = new Map(this.reports.dailySales(week).map((row) => [row.day, row]));
+    const out: DashboardDay[] = [];
+    const cursor = new Date(week.fromIso);
+
+    for (let i = 0; i < 7; i += 1) {
+      const day = localDay(cursor);
+      const row = byDay.get(day);
+      out.push({
+        day,
+        invoices: row?.invoices ?? 0,
+        netPaise: row ? row.total - row.returns : 0,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return out;
+  }
+
   summary(input: unknown): DashboardSummary {
     const query: DashboardQuery = dashboardQuerySchema.parse(input);
     const today: Range = { fromIso: query.fromIso, toIso: query.toIso };
@@ -89,6 +120,7 @@ export class DashboardService {
       week: this.takings(week),
       yesterday: this.takings(before(today, 1)),
       previousWeek: this.takings(before(week, 7)),
+      days: this.days(week),
       methods,
       // A handful: the point is a glance, not a report.
       lowStock: this.inventory.lowStock(5),

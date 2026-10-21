@@ -223,6 +223,7 @@ export function App() {
         {view === 'pos' && (
           <Pos
             settings={settings}
+            canManageCustomers={allowed('customer.manage')}
             quotationId={billingQuotation}
             onQuotationLoaded={() => setBillingQuotation(null)}
           />

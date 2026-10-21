@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BarChart3, Download } from 'lucide-react';
 import { call } from '../lib/ipc';
+import { ReportChart } from '../components/ReportChart';
 import { formatPaise } from '@shared/money';
 import {
   REPORT_KINDS,
@@ -190,6 +191,8 @@ export function Reports({ settings }: { settings: AppSettings }) {
         </div>
       ) : (
         <>
+          <ReportChart table={table} />
+
           <div className="table-wrap">
             <table className="data report">
               <thead>

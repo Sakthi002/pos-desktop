@@ -57,6 +57,30 @@ export const customerReceiptSchema = z.object({
 
 export type CustomerReceiptInput = z.infer<typeof customerReceiptSchema>;
 
+/**
+ * One payment made in more than one form: half in cash and half by UPI is how
+ * a customer settles what they owe, and it is one visit, not two. Each part is
+ * written as its own receipt, so the books and the drawer see what they always
+ * saw, but they go in together or not at all.
+ */
+export const customerReceiptSplitSchema = z.object({
+  customerId: z.string().uuid(),
+  /** Null settles the account rather than one bill. */
+  saleId: z.string().uuid().nullable().optional(),
+  parts: z
+    .array(
+      z.object({
+        method: z.enum(RECEIPT_METHODS),
+        amountPaise: z.number().int().positive('Enter an amount'),
+        reference: z.string().trim().max(60).nullable().optional(),
+      }),
+    )
+    .min(1, 'Enter at least one amount')
+    .max(RECEIPT_METHODS.length),
+});
+
+export type CustomerReceiptSplitInput = z.infer<typeof customerReceiptSplitSchema>;
+
 export interface CustomerReceipt {
   id: string;
   customerId: string;

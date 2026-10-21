@@ -10,6 +10,7 @@ import {
   customerQuerySchema,
   customerUpdateSchema,
   type Customer,
+  type CustomerMatches,
   type CustomerPage,
   type CustomerQuery,
   type CustomerSummary,
@@ -67,19 +68,38 @@ export class CustomerService {
     this.companyId = row.id;
   }
 
-  /** Walk-in first, then best matches: the till reaches for it constantly. */
-  search(term: string, limit = 20): Customer[] {
-    const like = `%${term.trim()}%`;
+  /**
+   * Walk-in first, then whoever was billed most recently: a shop reaches for
+   * its regulars, and alphabetical order buries them behind whoever happens to
+   * be called Anand. Customers never billed come last, by name.
+   *
+   * A screenful at a time, with the count of everyone matching beside it: the
+   * till appends the next screenful as the list is scrolled, and without the
+   * count it could not know whether there is one.
+   */
+  search(term: string, limit = 20, offset = 0): CustomerMatches {
+    const trimmed = term.trim();
+    const like = `%${trimmed}%`;
+    const where = `company_id = ? AND is_active = 1 AND (? = '' OR name LIKE ? OR phone LIKE ?)`;
+    const params = [this.companyId, trimmed, like, like];
+
     const rows = this.db
       .prepare(
-        `SELECT * FROM customers
-          WHERE company_id = ? AND is_active = 1
-            AND (? = '' OR name LIKE ? OR phone LIKE ?)
-          ORDER BY is_walk_in DESC, name
-          LIMIT ?`,
+        `SELECT c.*,
+                (SELECT MAX(s.invoice_date) FROM sales s
+                  WHERE s.customer_id = c.id AND s.status = 'completed') AS last_sale
+           FROM customers c
+          WHERE ${where}
+          ORDER BY c.is_walk_in DESC, last_sale IS NULL, last_sale DESC, c.name
+          LIMIT ? OFFSET ?`,
       )
-      .all(this.companyId, term.trim(), like, like, limit) as Row[];
-    return rows.map(toCustomer);
+      .all(...params, limit, offset) as Row[];
+
+    const { n } = this.db
+      .prepare(`SELECT COUNT(*) AS n FROM customers WHERE ${where}`)
+      .get(...params) as { n: number };
+
+    return { items: rows.map(toCustomer), total: n };
   }
 
   walkIn(): Customer | null {

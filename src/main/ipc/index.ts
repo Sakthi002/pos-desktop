@@ -168,7 +168,9 @@ export function registerIpcHandlers(): void {
     }
   };
 
-  registerHandler('customers:search', ({ term }) => customers().search(term));
+  registerHandler('customers:search', ({ term, limit, offset }) =>
+    customers().search(term, limit, offset),
+  );
   registerHandler('customers:walkIn', () => customers().walkIn());
   registerHandler('customers:create', (input) => customers().create(input));
 
@@ -378,6 +380,9 @@ export function registerIpcHandlers(): void {
     counter((service) => service.receipts(customerId)),
   );
   registerHandler('counter:receive', (input) => counter((service) => service.recordReceipt(input)));
+  registerHandler('counter:receiveSplit', (input) =>
+    counter((service) => service.recordReceipts(input)),
+  );
   registerHandler('shift:current', () => counter((service) => service.current()));
   registerHandler('shift:recent', () => counter((service) => service.recent()));
   registerHandler('shift:open', (input) => counter((service) => service.openShift(input)));

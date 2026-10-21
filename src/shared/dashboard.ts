@@ -27,6 +27,15 @@ export interface DashboardTakings {
   netPaise: number;
 }
 
+/** One day of the week behind the dashboard's chart. */
+export interface DashboardDay {
+  /** The shop's local day, as YYYY-MM-DD. */
+  day: string;
+  invoices: number;
+  /** Takings less credit notes, which is what the week's total is made of. */
+  netPaise: number;
+}
+
 export interface DashboardMethod {
   method: PaymentMethod;
   collectedPaise: number;
@@ -44,6 +53,8 @@ export interface DashboardSummary {
    */
   yesterday: DashboardTakings;
   previousWeek: DashboardTakings;
+  /** The seven days ending today, oldest first, zeroes included. */
+  days: DashboardDay[];
   methods: DashboardMethod[];
   lowStock: LowStockItem[];
   recentSales: SaleSummary[];

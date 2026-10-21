@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Plus, Search, Users, Pencil, Receipt, UserX, UserCheck, Star, Wallet } from 'lucide-react';
 import { call } from '../lib/ipc';
 import { CustomerForm } from '../components/CustomerForm';
+import { Pager } from '../components/Pager';
+import { PAGE_SIZES } from '../lib/paging';
 import { CustomerHistory } from '../components/CustomerHistory';
 import { LoyaltyCardDialog } from '../components/LoyaltyCardDialog';
 import { CustomerAccountDialog } from '../components/CustomerAccountDialog';
@@ -31,7 +33,7 @@ export function Customers({ settings }: { settings: AppSettings }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<Status>('active');
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function Customers({ settings }: { settings: AppSettings }) {
     } finally {
       setLoading(false);
     }
-  }, [search, status, page]);
+  }, [search, status, page, pageSize]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async IPC load
@@ -145,6 +147,7 @@ export function Customers({ settings }: { settings: AppSettings }) {
                   <th>GSTIN</th>
                   <th className="num">Invoices</th>
                   <th className="num">Spent</th>
+                  <th className="num">Owes</th>
                   <th>Last purchase</th>
                   <th />
                 </tr>
@@ -162,6 +165,20 @@ export function Customers({ settings }: { settings: AppSettings }) {
                     <td className="mono">{c.gstin ?? '—'}</td>
                     <td className="num">{c.invoices}</td>
                     <td className="num">{formatPaise(c.totalPaise)}</td>
+                    {/* Derived, never stored: billed on credit, less credit
+                        notes, less what has been received. A customer who has
+                        paid ahead is owed, not owing. */}
+                    <td className="num">
+                      {c.outstandingPaise > 0 ? (
+                        <strong className="owes">{formatPaise(c.outstandingPaise)}</strong>
+                      ) : c.outstandingPaise < 0 ? (
+                        <span className="in-advance" title="Paid in advance">
+                          +{formatPaise(-c.outstandingPaise)}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td>{formatDate(c.lastPurchaseAt)}</td>
                     <td className="actions">
                       <button
@@ -171,7 +188,7 @@ export function Customers({ settings }: { settings: AppSettings }) {
                       >
                         <Receipt size={15} />
                       </button>
-                      {!c.isWalkIn && (c.creditLimitPaise > 0 || c.outstandingPaise !== 0) && (
+                      {!c.isWalkIn && (
                         <button
                           className="icon-btn view"
                           title="Account"
@@ -208,27 +225,17 @@ export function Customers({ settings }: { settings: AppSettings }) {
             </table>
           </div>
 
-          {pages > 1 && (
-            <div className="pager">
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </button>
-              <span>
-                Page {page} of {pages}
-              </span>
-              <button
-                className="btn-secondary"
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pager
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
 

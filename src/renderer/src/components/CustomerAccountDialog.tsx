@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { MessageCircle, Wallet } from 'lucide-react';
+import { Wallet } from 'lucide-react';
+import { WhatsAppIcon } from './WhatsAppIcon';
 import { Modal } from './Modal';
 import { WhatsAppDialog } from './WhatsAppDialog';
 import { Field } from './Field';
@@ -34,8 +35,11 @@ export function CustomerAccountDialog({
   const [sending, setSending] = useState(false);
 
   const [saleId, setSaleId] = useState('');
-  const [method, setMethod] = useState<PaymentMethod>('cash');
-  const [amount, setAmount] = useState('');
+  // Money comes over the counter in more than one form — half cash, half UPI —
+  // and that is one payment, so it is entered as one.
+  const [parts, setParts] = useState<{ method: PaymentMethod; amount: string }[]>([
+    { method: 'cash', amount: '' },
+  ]);
 
   const load = useCallback(async () => {
     try {
@@ -55,22 +59,46 @@ export function CustomerAccountDialog({
     void load();
   }, [load]);
 
+  // What this payment comes to, and what the part being added should default
+  // to: whatever is left of the bill or the balance it is going against.
+  const entered = parts.reduce((a, part) => a + (parseRupees(part.amount) ?? 0), 0);
+  const due = saleId
+    ? (account?.bills.find((b) => b.saleId === saleId)?.outstandingPaise ?? 0)
+    : (account?.outstandingPaise ?? 0);
+
+  const addPart = () => {
+    const left = Math.max(0, due - entered);
+    setParts((current) => [
+      ...current,
+      {
+        method: PAYMENT_METHODS.find((m) => !current.some((p) => p.method === m)) ?? 'cash',
+        amount: left > 0 ? (left / 100).toFixed(2) : '',
+      },
+    ]);
+  };
+
   async function receive() {
-    const paise = parseRupees(amount);
-    if (!paise || paise <= 0) {
+    if (parts.some((part) => part.amount.trim() !== '' && parseRupees(part.amount) === null)) {
+      setError('One of the amounts is not a valid figure.');
+      return;
+    }
+    const taken = parts
+      .map((part) => ({ method: part.method, amountPaise: parseRupees(part.amount) ?? 0 }))
+      .filter((part) => part.amountPaise > 0);
+    if (taken.length === 0) {
       setError('Enter an amount.');
       return;
     }
+
     setBusy(true);
     setError(null);
     try {
-      await call('counter:receive', {
+      await call('counter:receiveSplit', {
         customerId: customer.id,
         saleId: saleId || null,
-        method,
-        amountPaise: paise,
+        parts: taken,
       });
-      setAmount('');
+      setParts([{ method: 'cash', amount: '' }]);
       setSaleId('');
       await load();
     } catch (err) {
@@ -90,8 +118,8 @@ export function CustomerAccountDialog({
           <span className="field-hint">
             A statement is drawn as it stands now — it is not a bill and asks for nothing new.
           </span>
-          <button className="btn-success" onClick={() => setSending(true)} disabled={!account}>
-            <MessageCircle size={15} /> Send the account
+          <button className="btn-whatsapp" onClick={() => setSending(true)} disabled={!account}>
+            <WhatsAppIcon /> Send the account
           </button>
         </>
       }
@@ -109,21 +137,6 @@ export function CustomerAccountDialog({
               <div className="stat-text">
                 <span className="stat-label">Owes us</span>
                 <strong className="stat-value">{formatPaise(account.outstandingPaise)}</strong>
-              </div>
-            </div>
-            <div className="stat">
-              <div className="stat-text">
-                <span className="stat-label">Credit limit</span>
-                <strong className="stat-value">
-                  {account.creditLimitPaise > 0
-                    ? formatPaise(account.creditLimitPaise)
-                    : 'Cash only'}
-                </strong>
-                {account.availablePaise !== null && (
-                  <span className="stat-note">
-                    {formatPaise(account.availablePaise)} left before it stops a sale
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -148,11 +161,20 @@ export function CustomerAccountDialog({
                       ))}
                   </select>
                 </Field>
-                <Field label="How" htmlFor="ac-method" plainLabel>
+              </div>
+
+              {parts.map((part, i) => (
+                <div className="pay-row" key={i}>
                   <select
-                    id="ac-method"
-                    value={method}
-                    onChange={(e) => setMethod(e.target.value as PaymentMethod)}
+                    value={part.method}
+                    aria-label="How they paid"
+                    onChange={(e) =>
+                      setParts((current) =>
+                        current.map((p, idx) =>
+                          idx === i ? { ...p, method: e.target.value as PaymentMethod } : p,
+                        ),
+                      )
+                    }
                   >
                     {PAYMENT_METHODS.map((m) => (
                       <option key={m} value={m}>
@@ -160,21 +182,43 @@ export function CustomerAccountDialog({
                       </option>
                     ))}
                   </select>
-                </Field>
-                <Field label="Amount" htmlFor="ac-amount" required>
                   <input
-                    id="ac-amount"
                     className="price-input"
                     inputMode="decimal"
                     placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    aria-label="Amount"
+                    value={part.amount}
+                    onChange={(e) =>
+                      setParts((current) =>
+                        current.map((p, idx) => (idx === i ? { ...p, amount: e.target.value } : p)),
+                      )
+                    }
                   />
-                </Field>
-              </div>
+                  {parts.length > 1 && (
+                    <button
+                      className="icon-btn danger"
+                      title="Remove"
+                      onClick={() => setParts((current) => current.filter((_, idx) => idx !== i))}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+
               <div className="page-actions">
-                <button className="btn-success" onClick={() => void receive()} disabled={busy}>
-                  <Wallet size={15} /> {busy ? 'Recording…' : 'Record what they paid'}
+                {parts.length < PAYMENT_METHODS.length && (
+                  <button className="btn-info small" onClick={addPart}>
+                    + Split payment
+                  </button>
+                )}
+                <button className="btn-primary" onClick={() => void receive()} disabled={busy}>
+                  <Wallet size={15} />{' '}
+                  {busy
+                    ? 'Recording…'
+                    : entered > 0
+                      ? `Record ${formatPaise(entered)}`
+                      : 'Record what they paid'}
                 </button>
               </div>
             </section>

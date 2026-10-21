@@ -1,7 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ClipboardList,
+import {
+  ClipboardList,
   LayoutDashboard,
   ShoppingCart,
+  PanelLeftClose,
+  PanelLeftOpen,
   Receipt,
   Package,
   Boxes,
@@ -47,6 +50,9 @@ interface NavItem {
   /** The screen's own colour, fixed so it never moves between sessions. */
   hue: Hue;
 }
+
+/** Where the sidebar's width is remembered between sessions. */
+const NAV_WIDTH_KEY = 'pos.sidebar';
 
 const NAV: NavItem[] = [
   {
@@ -132,7 +138,25 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [logo, setLogo] = useState<string | null>(null);
+  // Whether the sidebar is down to its icons. The choice outlives the window:
+  // a shop that collapses it once should not find it wide open tomorrow. The
+  // guards are for a profile that refuses storage, where it simply does not.
+  const [tight, setTight] = useState(() => {
+    try {
+      return localStorage.getItem(NAV_WIDTH_KEY) === 'tight';
+    } catch {
+      return false;
+    }
+  });
   const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NAV_WIDTH_KEY, tight ? 'tight' : 'wide');
+    } catch {
+      /* Nothing to do: the sidebar simply opens wide again next time. */
+    }
+  }, [tight]);
 
   // The till is where a shop looks for the time, so it keeps itself honest.
   useEffect(() => {
@@ -150,10 +174,6 @@ export function AppShell({
       .catch(() => setLogo(null));
   }, [settings]);
 
-  // Billing gets the whole window. Everything else keeps the sidebar, and the
-  // bar at the top is how you cross between the two.
-  const billing = route === 'pos';
-
   const brand = (
     <div className="brand">
       {logo ? (
@@ -170,67 +190,61 @@ export function AppShell({
     </div>
   );
 
-  const leaveTill: Route | null = allowed('report.view')
-    ? 'dashboard'
-    : allowed('sale.view')
-      ? 'sales'
-      : null;
-
   return (
-    <div className="shell">
-      {!billing && (
-        <aside className="sidebar">
-          {brand}
+    <div className={tight ? 'shell tight' : 'shell'}>
+      <aside className="sidebar">
+        {brand}
 
-          <nav>
-            {NAV.filter((item) => allowed(item.needs)).map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  className={route === item.id ? 'nav-item on' : 'nav-item'}
-                  style={hueStyle(item.hue)}
-                  onClick={() => onNavigate(item.id)}
-                >
-                  <span className="nav-icon">
-                    <Icon size={16} />
-                  </span>
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+        <nav>
+          {NAV.filter((item) => allowed(item.needs)).map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                className={route === item.id ? 'nav-item on' : 'nav-item'}
+                style={hueStyle(item.hue)}
+                title={tight ? item.label : undefined}
+                onClick={() => onNavigate(item.id)}
+              >
+                <span className="nav-icon">
+                  <Icon size={16} />
+                </span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-          <footer className="sidebar-foot">
-            <span className="badge ok">
-              <HardDrive size={11} style={{ verticalAlign: '-1px' }} /> Local data
-            </span>
-            <span className="muted">
-              v{version}
-              {db ? ` · schema v${db.schemaVersion}` : ''}
-            </span>
-          </footer>
-        </aside>
-      )}
+        <footer className="sidebar-foot">
+          <span className="badge ok">
+            <HardDrive size={11} style={{ verticalAlign: '-1px' }} />
+            {/* Its own span, so the collapsed rail can keep the mark and drop
+                the words with everything else. */}
+            <span>Local data</span>
+          </span>
+          <span className="muted">
+            v{version}
+            {db ? ` · schema v${db.schemaVersion}` : ''}
+          </span>
+        </footer>
+      </aside>
 
       <div className="shell-main">
         <header className="topbar">
-          {/* With the sidebar away, the bar carries the shop's own name. */}
-          {billing && brand}
+          {/* The one thing in the bar that is about the sidebar: with the
+              sidebar down to its icons, its own header is gone with them. */}
+          <button
+            className="icon-btn"
+            title={tight ? 'Show the menu' : 'Collapse the menu'}
+            aria-label={tight ? 'Show the menu' : 'Collapse the menu'}
+            aria-expanded={!tight}
+            onClick={() => setTight((t) => !t)}
+          >
+            {tight ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
 
-          {billing
-            ? leaveTill && (
-                <button className="btn-primary" onClick={() => onNavigate(leaveTill)}>
-                  <LayoutDashboard size={15} />
-                  {leaveTill === 'dashboard' ? 'Dashboard' : 'Sales'}
-                </button>
-              )
-            : allowed('sell') && (
-                <button className="btn-primary" onClick={() => onNavigate('pos')}>
-                  <ShoppingCart size={15} /> New sale
-                </button>
-              )}
-
+          {/* Crossing between screens is the sidebar's job now, so the rest of
+              the bar is only what a till looks up: the day and the time. */}
           <span className="till-chip">{dayLabel(now)}</span>
           <span className="till-chip mono">{clockLabel(now)}</span>
 

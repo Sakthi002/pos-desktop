@@ -14,10 +14,23 @@ The level a bill was charged at is stored on the bill.
 
 ## Credit
 
-A bill may be left part-paid only when three things are true: a named customer
-is on it, they have a credit limit, and the shortfall keeps them inside it. The
-shortfall has to be ticked at the payment screen — an underpaid bill with
-nothing ticked is a mistake, and is refused as one.
+A bill may be left part-paid when a named customer is on it. That is the whole
+of the rule: a walk-in cannot owe, because there is nobody to ask. Nothing caps
+a customer — a shop lends what it is willing to lend, and what it goes by is
+what they already owe, which the till shows in red beside the price list and
+the payment screen repeats under the tick. The shortfall has to be ticked —
+it is ticked for you when the figures say so, and the button reads "On account"
+before it is pressed, so an underpaid bill is never committed as a mistake.
+
+Credit limits were taken out: they stopped sales a shop meant to make, and a
+figure for what is owed does the same work without a form to fill. The column
+remains on the record for what is already stored; nothing reads it.
+
+A walk-in has no account, which used to end the sale there. The payment screen
+now offers to open one: a name and a phone number, written as a customer, put
+on the bill, and the shortfall ticked — without losing the bill. Opening an
+account from the till needs the same permission as managing customers anywhere
+else.
 
 What a customer owes is derived, never stored: bills taken on credit, less
 credit notes against them, less what has been received. The unpaid part goes
@@ -25,7 +38,10 @@ to the customer's own line in **Customers owe us**, so their statement in the
 books and their account at the counter are the same figure.
 
 Money received against an account can sit on one bill or on the account.
-Either way it posts a receipt voucher as it is written.
+Either way it posts a receipt voucher as it is written. One payment may come
+over the counter in more than one form — half cash, half UPI — and is entered
+as one: each part is written as its own receipt, so the drawer still counts
+only the cash, but the parts go in together or not at all.
 
 ## Shifts and the drawer
 

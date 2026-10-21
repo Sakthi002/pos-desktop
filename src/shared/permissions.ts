@@ -103,6 +103,7 @@ export const CHANNEL_PERMISSIONS: Record<string, Permission> = {
   'counter:account': 'sale.view',
   'counter:receipts': 'sale.view',
   'counter:receive': 'sell',
+  'counter:receiveSplit': 'sell',
   'shift:current': 'sell',
   'shift:recent': 'report.view',
   'shift:open': 'sell',

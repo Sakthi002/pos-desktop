@@ -12,9 +12,19 @@ import { call } from '../lib/ipc';
 import { formatPaise } from '@shared/money';
 import { formatQuantity, precisionFor } from '@shared/quantity';
 import type { DashboardSummary } from '@shared/dashboard';
+import { Bars, type Bar } from '../components/Bars';
 import type { Route } from '../components/AppShell';
 
 const pad = (n: number) => String(n).padStart(2, '0');
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/** A day on the chart: the weekday, which is how a shop thinks of a week. */
+function dayLabel(day: string): string {
+  const [year, month, date] = day.split('-').map(Number);
+  const at = new Date(year ?? 1970, (month ?? 1) - 1, date ?? 1);
+  return WEEKDAYS[at.getDay()] ?? day;
+}
 
 /**
  * How a figure moved against the span before it. Nothing is shown when there
@@ -197,6 +207,27 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
             )}
           </section>
 
+          <section className="panel-card">
+            <header>
+              <h2>The last seven days</h2>
+              <span className="pill">{formatPaise(data.week.netPaise)} in all</span>
+            </header>
+            <Bars
+              bars={data.days.map((day, i): Bar => ({
+                label: dayLabel(day.day),
+                value: day.netPaise,
+                note:
+                  day.invoices > 0
+                    ? `${day.invoices} ${day.invoices === 1 ? 'bill' : 'bills'}`
+                    : '',
+                // Today is the bar a shopkeeper is standing in.
+                accent: i === data.days.length - 1,
+              }))}
+              format={(value) => formatPaise(value)}
+              empty="Nothing taken in the last seven days."
+            />
+          </section>
+
           <section className="dash-cols">
             <div className="panel-card">
               <header>
@@ -205,19 +236,16 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: Route) => void }
               {data.methods.length === 0 ? (
                 <p className="empty">No payments yet today.</p>
               ) : (
-                <ul className="dash-list">
-                  {data.methods.map((m) => (
-                    <li key={m.method}>
-                      <span>{m.method.toUpperCase()}</span>
-                      <strong>
-                        {formatPaise(m.collectedPaise - m.refundedPaise)}
-                        {m.refundedPaise > 0 && (
-                          <span className="sub-cell">{formatPaise(m.refundedPaise)} refunded</span>
-                        )}
-                      </strong>
-                    </li>
-                  ))}
-                </ul>
+                <Bars
+                  horizontal
+                  multi
+                  bars={data.methods.map((m): Bar => ({
+                    label: m.method.toUpperCase(),
+                    value: m.collectedPaise - m.refundedPaise,
+                  }))}
+                  format={(value) => formatPaise(value)}
+                  empty="No payments yet today."
+                />
               )}
               <footer>
                 <button className="link-btn" onClick={() => onNavigate('reports')}>

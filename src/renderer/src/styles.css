@@ -37,6 +37,11 @@
 :root {
   --bg: #f4f5fb;
   --surface: #ffffff;
+  /* The sidebar is the app's own dark edge: the screen beside it is the work,
+     and the navigation is the frame around it. Near-black rather than black,
+     from the same family as --ink, so it sits with the rest of the palette.
+     Short of black: at black the screen reads as a hole beside the page. */
+  --sidebar: #272b39;
   --raised: #fafaff;
   --line: #e5e7f0;
   --line-soft: #eff1f8;
@@ -228,7 +233,35 @@ body {
   width: auto;
 }
 
+/* What a customer already owes, beside the price list on the till. Red and
+   bigger than the chip beside it: it is the one thing on this strip that
+   should stop a hand before more goes on the same account. */
+.owes-note {
+  margin-left: auto;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--err-tint);
+  color: var(--err);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 .terms-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The customer picker: a window on the list rather than the whole of it, so a
+   shop with three hundred names opens as fast as a shop with three. */
+.picker-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* A list that is showing less than it holds says so, under itself. */
+.list-note {
+  margin: 10px 2px 0;
   font-size: 12px;
   color: var(--muted);
 }
@@ -588,7 +621,7 @@ select {
 .btn-primary,
 .btn-secondary,
 .btn-danger,
-.btn-success,
+.btn-whatsapp,
 .btn-warn,
 .btn-info {
   display: inline-flex;
@@ -631,18 +664,21 @@ select {
   background: var(--line-soft);
 }
 
-/* A button says what kind of act it is before it is read: money in is green,
-   something to be careful with is amber, a thing to look at or take away is
-   blue, and undoing is red. White is kept for the three acts that are none of
-   those — cancel, close, and turning a page. */
-.btn-success {
+/* A button says what kind of act it is before it is read: leaving the app for
+   WhatsApp is green, something to be careful with is amber, a thing to look at
+   or take away is blue, and undoing is red. White is kept for the three acts
+   that are none of those — cancel, close, and turning a page.
+   Green is WhatsApp's alone: a shop should be able to find the one button that
+   opens a chat without reading a word of it. Money is the app's own indigo,
+   like every other act that commits something. */
+.btn-whatsapp {
   background: var(--ok);
   color: #fff;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(10, 124, 85, 0.2);
 }
 
-.btn-success:hover:not(:disabled) {
+.btn-whatsapp:hover:not(:disabled) {
   background: #086a48;
 }
 
@@ -694,7 +730,7 @@ select {
 .btn-primary:disabled,
 .btn-secondary:disabled,
 .btn-danger:disabled,
-.btn-success:disabled,
+.btn-whatsapp:disabled,
 .btn-warn:disabled,
 .btn-info:disabled {
   cursor: not-allowed;
@@ -734,6 +770,12 @@ select {
 
 .icon-btn.danger:hover {
   background: var(--err-tint);
+  color: var(--err);
+}
+
+/* Signing out is the one thing in the bar that does not undo itself when
+   pressed again, so it wears its colour at rest rather than on hover. */
+.topbar .who .icon-btn.danger {
   color: var(--err);
 }
 
@@ -790,11 +832,24 @@ kbd {
 .sidebar {
   /* Wide enough for a shop name on one line: "Sharma General Store" wrapped at
      228px, and a name that wraps reads as a cramped app. */
-  width: 268px;
+  width: var(--nav-w, 268px);
   flex: none;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
-  padding: 0 12px 18px;
+  background: var(--sidebar);
+  /* The light tokens are re-pointed for the dark ground rather than every rule
+     inside being rewritten: anything in here asking for ink, a muted label or a
+     rule gets the dark-ground value and stays legible. The screen beside the
+     sidebar is untouched. */
+  --ink: #f3f4f9;
+  --ink-2: #ccd0e0;
+  --muted: #9399ae;
+  --faint: #70778c;
+  --line: rgba(255, 255, 255, 0.11);
+  --line-soft: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+  /* The dark against the page is its own edge; a rule on top of it only
+     muddies the join. */
+  border-right: 0;
+  padding: var(--nav-pad, 0 12px 18px);
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -810,6 +865,7 @@ kbd {
    across the top, and run out to the sidebar's edges, so the rule under it and
    the rule under the bar meet at one line. */
 .sidebar .brand {
+  display: var(--nav-word, flex);
   height: var(--topbar-h);
   margin: 0 -12px;
   padding: 0 22px;
@@ -874,9 +930,10 @@ kbd {
 .nav-item {
   display: flex;
   align-items: center;
+  justify-content: var(--nav-row, flex-start);
   gap: 11px;
   height: 44px;
-  padding: 0 11px;
+  padding: var(--nav-row-pad, 0 11px);
   border: 0;
   border-radius: 11px;
   background: transparent;
@@ -912,6 +969,13 @@ kbd {
   color: var(--hue, var(--accent));
 }
 
+/* On the dark ground the pale screen tint would glare, so the open screen is
+   marked by lifting the row off it. Its colour stays in the icon. */
+.sidebar .nav-item.on {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
 .nav-item.on .nav-icon {
   background: var(--hue, var(--accent));
   color: #fff;
@@ -922,7 +986,13 @@ kbd {
   cursor: not-allowed;
 }
 
+/* The label beside the icon; the icon's own span is not one. */
+.nav-item > span:not(.nav-icon) {
+  display: var(--nav-word, block);
+}
+
 .nav-item em {
+  display: var(--nav-word, block);
   margin-left: auto;
   font-style: normal;
   font-size: 10.5px;
@@ -930,9 +1000,11 @@ kbd {
   color: var(--faint);
 }
 
-/* Who is at the till, just above the footer: name, role, and the two ways to
-   leave it — lock, which keeps the name, and sign out, which does not. */
-.who {
+/* Who is signed in, in the bar across the top: name, role, and the two ways to
+   leave it — lock, which keeps the name, and sign out, which does not. Scoped
+   to the bar, because the till's customer strip calls its own block .who as
+   well and was being laid out as a row by this. */
+.topbar .who {
   margin-top: auto;
   margin-bottom: 9px;
   display: flex;
@@ -964,8 +1036,14 @@ kbd {
 }
 
 /* With a user block above it the footer no longer pushes itself down. */
-.who + .sidebar-foot {
+.topbar .who + .sidebar-foot {
   margin-top: 0;
+}
+
+/* A shop's logo is drawn for paper, so it keeps a white plate to sit on
+   rather than being left to disappear into the dark. */
+.sidebar .brand-mark:not(.initials) {
+  background: var(--surface);
 }
 
 .sidebar-foot {
@@ -981,8 +1059,8 @@ kbd {
 /* A rule over the foot to answer the one under the header, run out to the
    sidebar's own edges so both cross it fully. */
 .sidebar .sidebar-foot {
-  margin-inline: -12px;
-  padding-inline: 22px;
+  margin-inline: var(--nav-bleed, -12px);
+  padding-inline: var(--nav-foot-pad, 22px);
   padding-top: 18px;
   border-radius: 0;
   border-top: 1px solid var(--line);
@@ -990,10 +1068,15 @@ kbd {
 }
 
 .sidebar .sidebar-foot .badge {
-  align-self: flex-start;
+  align-self: var(--nav-row, flex-start);
+}
+
+.sidebar-foot .badge span {
+  display: var(--nav-word, inline);
 }
 
 .sidebar-foot .muted {
+  display: var(--nav-word, block);
   font-size: 11px;
   color: var(--muted);
 }
@@ -1391,12 +1474,182 @@ td.actions .icon-btn.danger:disabled {
   color: var(--faint);
 }
 
+/* Rows per page on the left, where this list stands in the middle, the way
+   on at the right: the same three things at the foot of every list. */
 .pager {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   padding: 18px 28px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pager-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pager-size select {
+  width: auto;
+  height: 34px;
+  padding: 0 28px 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pager-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.pager-steps {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ─── Charts ─────────────────────────────────────────────────────────────── */
+
+/* Bars, in the hue of the screen they sit on. The figure is read; the bar is
+   only there to be compared with the bar beside it. */
+.bars.columns {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 172px;
+  box-sizing: content-box;
+}
+
+.bar-col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The column a day's bar stands in, drawn whether or not the day took
+   anything: without it a quiet day is a sliver floating over white, and the
+   chart reads as broken rather than as a slow Tuesday. */
+.bar-col .bar-track {
+  flex: 1;
+  width: 100%;
+  max-width: 54px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--line-soft);
+}
+
+/* The screen's hue, held back so the day being stood in can be solid. A tint
+   would be the colour of the track behind it and read as nothing at all. */
+.bar-col .bar-fill {
+  width: 100%;
+  max-width: 54px;
+  border-radius: 8px 8px 4px 4px;
+  background: var(--hue, var(--accent));
+  opacity: 0.4;
+}
+
+.bar-fill.on {
+  background: var(--hue, var(--accent));
+  opacity: 1;
+}
+
+.bar-col .bar-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bar-col .bar-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bar-note {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+/* Names down the side: a product or a method is read, not scanned. */
+.bars.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-row .bar-label {
+  width: 150px;
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-row .bar-track {
+  flex: 1;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.bar-row .bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--hue, var(--accent));
+}
+
+.bar-row .bar-value {
+  width: 110px;
+  flex: none;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The chart sits where the table's first rows would be, in the page's own
+   margins, so the two read as one answer rather than two. */
+.report-chart {
+  margin: 0 28px 18px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--sh-1);
+}
+
+.chart-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chart-empty {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
   font-size: 13px;
   color: var(--muted);
 }
@@ -1792,72 +2045,158 @@ td.actions .icon-btn.danger:disabled {
   display: flex;
 }
 
-.cat-rail {
-  width: 104px;
-  flex: none;
-  padding: 12px 10px;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
-  overflow-y: auto;
+/* The search and the filter share one line: the wall of products is what the
+   till is for, and a rail of categories down the side was taking width from it
+   for a choice made once a day. */
+.pos-find {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
-.cat {
+.pos-filter {
+  position: relative;
+  flex: none;
+}
+
+.filter-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 76px;
-  padding: 12px 6px;
-  border: 1px solid transparent;
+  gap: 9px;
+  height: 52px;
+  padding: 0 15px;
+  border: 1px solid var(--line);
   border-radius: var(--r-md);
-  background: transparent;
+  background: var(--surface);
   color: var(--ink-2);
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  line-height: 1.25;
-  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--sh-1);
   cursor: pointer;
   transition:
     background 0.14s ease,
     border-color 0.14s ease;
 }
 
-.cat:hover {
+.filter-btn:hover {
   background: var(--line-soft);
 }
 
-.cat .cat-mark {
+/* A filter left on is a reason the wall looks short, so the button wears the
+   screen's colour until it is cleared. */
+.filter-btn.on {
+  background: var(--hue-tint, var(--accent-tint));
+  border-color: var(--hue, var(--accent));
+  color: var(--hue, var(--accent));
+  font-weight: 700;
+}
+
+/* Three ways to show the same products, as one control: a shop with twelve
+   lines wants pictures, a shop with four hundred wants a list. */
+.wall-switch {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  height: 52px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+}
+
+.wall-btn {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
+  width: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
+}
+
+.wall-btn:hover {
+  background: var(--line-soft);
+}
+
+.wall-btn.on {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.filter-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 232px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-2);
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.filter-item:hover {
+  background: var(--line-soft);
+}
+
+.filter-item.on {
+  color: var(--hue, var(--accent));
+  font-weight: 700;
+}
+
+/* The label, between the mark and the tick. */
+.filter-item > span + span {
+  margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Each category keeps the colour it has everywhere else, so the menu is read
+   by its marks as much as by its words. */
+.cat-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
   background: var(--hue-tint, var(--line-soft));
   color: var(--hue, var(--muted));
 }
 
-.cat.on .cat-mark {
+.filter-item.on .cat-mark {
   background: var(--hue, var(--accent));
   color: #fff;
-}
-
-.cat.on {
-  background: var(--accent-tint);
-  border-color: var(--accent-edge);
-  color: var(--accent);
-}
-
-.cat span {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pos-main {
@@ -1869,9 +2208,10 @@ td.actions .icon-btn.danger:disabled {
 
 .pos-search {
   position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
 }
 
 .pos-search svg {
@@ -1963,6 +2303,7 @@ td.actions .icon-btn.danger:disabled {
 }
 
 .tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1991,7 +2332,6 @@ td.actions .icon-btn.danger:disabled {
 }
 
 .tile-art {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2027,6 +2367,77 @@ td.actions .icon-btn.danger:disabled {
 .tile-stock.out {
   background: var(--err-tint);
   color: var(--err);
+}
+
+/* Compact: the same tile with the picture cut down, for a shop whose wall is
+   longer than its screen. */
+.tile-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 10px;
+}
+
+.compact .tile-art {
+  height: 52px;
+  font-size: 16px;
+}
+
+/* List: one line a product, for a catalogue nobody could recognise by its
+   initials anyway. The parts are the tile's own, put in a row by order. */
+.tile-grid.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list .tile {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+}
+
+.list .tile:hover {
+  transform: none;
+}
+
+.list .tile-art {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  font-size: 15px;
+}
+
+.list .tile-name {
+  order: 1;
+  flex: 1;
+  min-width: 0;
+  -webkit-line-clamp: 1;
+  font-size: 14.5px;
+}
+
+.list .tile-sku {
+  order: 2;
+}
+
+/* Off the picture and into the line, where the shelf reads as a column. */
+.list .tile-stock {
+  order: 3;
+  position: static;
+  min-width: 78px;
+  text-align: center;
+  background: var(--line-soft);
+  box-shadow: none;
+}
+
+.list .tile-foot {
+  order: 4;
+  margin-top: 0;
+  gap: 14px;
+}
+
+.list .tile-price {
+  min-width: 92px;
+  text-align: right;
 }
 
 .tile-name {
@@ -2094,9 +2505,11 @@ td.actions .icon-btn.danger:disabled {
   align-items: center;
   gap: 11px;
   padding: 10px;
-  border: 0;
+  border: 1px solid var(--accent-edge);
   border-radius: var(--r-md);
-  background: var(--bg);
+  /* The bill's own header, in the app's blue: who this sale is for is the one
+     thing on the panel that is not a figure. */
+  background: var(--accent-tint);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
@@ -2104,7 +2517,7 @@ td.actions .icon-btn.danger:disabled {
 }
 
 .customer-btn:hover {
-  background: var(--line-soft);
+  background: #e4e7fd;
 }
 
 .customer-btn .avatar {
@@ -2114,8 +2527,8 @@ td.actions .icon-btn.danger:disabled {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--line);
-  color: var(--muted);
+  background: var(--accent);
+  color: #fff;
   flex: none;
 }
 
@@ -2546,6 +2959,48 @@ td.actions .icon-btn.danger:disabled {
   color: var(--muted);
 }
 
+/* What a customer still owes, in a table of what they have spent: the two are
+   easily confused, so the one still to collect is the one that is coloured. */
+.owes {
+  color: var(--err);
+}
+
+/* A customer in credit, kept to one line: the column is beside Spent in a
+   table that is already wide. */
+.in-advance {
+  color: var(--ok);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The way out of a short bill, under the figures it is short by. */
+.pay-credit {
+  margin-top: 10px;
+}
+
+.pay-credit p {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.new-account {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+.new-account-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .outstanding {
   color: var(--err);
   font-weight: 700;
@@ -2814,6 +3269,12 @@ td.actions .icon-btn.danger:disabled {
   padding: 0 28px 28px;
 }
 
+/* The rows and the columns carry their own gap; a card standing on its own in
+   the flow carried none, and sat against whatever came next. */
+.dash > .panel-card {
+  margin-bottom: 16px;
+}
+
 .dash-row {
   display: grid;
   /* Four across on a shop's screen. The figure keeps its mark company until
@@ -2973,6 +3434,13 @@ td.actions .icon-btn.danger:disabled {
   border-top: 1px solid var(--line-soft);
 }
 
+/* A chart dropped into a panel is content, not a table: it needs the room the
+   card gives everything else, or the bars run into the card's own edges. */
+.panel-card > .bars,
+.panel-card > .chart-empty {
+  padding: 16px 20px;
+}
+
 .panel-card .table-wrap {
   margin: 0;
   border: 0;
@@ -3116,31 +3584,35 @@ td.actions .icon-btn.danger:disabled {
     width: 330px;
   }
 
-  .cat-rail {
-    width: 88px;
-  }
-
   .detail-foot {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 920px) {
-  .sidebar {
-    width: 72px;
-    padding: 16px 8px;
-  }
+/* Down to its icons: the five values the sidebar reads for its width, its
+   padding and whether it has words at all. The screens are told apart by the
+   icons alone, which is why the collapse keeps them. */
+.shell.tight {
+  --nav-w: 72px;
+  --nav-pad: 16px 8px;
+  --nav-word: none;
+  --nav-row: center;
+  --nav-row-pad: 0;
+  --nav-bleed: -8px;
+  --nav-foot-pad: 8px;
+}
 
-  .sidebar .brand,
-  .sidebar-foot .muted,
-  .nav-item span,
-  .nav-item em {
-    display: none;
-  }
-
-  .nav-item {
-    justify-content: center;
-    padding: 0;
+/* Below the width the app is built for, it collapses whether or not the shop
+   asked, because a window this narrow has nothing to spare. */
+@media (max-width: 1100px) {
+  .shell {
+    --nav-w: 72px;
+    --nav-pad: 16px 8px;
+    --nav-word: none;
+    --nav-row: center;
+    --nav-row-pad: 0;
+    --nav-bleed: -8px;
+    --nav-foot-pad: 8px;
   }
 
   .row {

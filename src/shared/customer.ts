@@ -85,6 +85,16 @@ export interface CustomerSummary extends Customer {
   outstandingPaise: number;
 }
 
+/**
+ * What a search at the till answers with. The rows are capped — a counter is
+ * not a place to scroll — so the count is sent beside them, or a shop with
+ * three hundred customers would believe it had twenty.
+ */
+export interface CustomerMatches {
+  items: Customer[];
+  total: number;
+}
+
 export interface CustomerPage {
   items: CustomerSummary[];
   total: number;
